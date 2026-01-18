@@ -1,0 +1,11 @@
+pub mod audit_repo;
+pub mod dashboard_repo;
+pub mod meta_repo;
+pub mod item_repo;
+pub mod operator_repo;
+pub mod photo_repo;
+pub mod rack_repo;
+pub mod stock_repo;
+pub mod stock_query_repo;
+pub mod txn_repo;
+pub mod warehouse_repo;

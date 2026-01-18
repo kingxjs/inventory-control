@@ -1,0 +1,1 @@
+{"default":{"identifier":"default","description":"默认能力集：主窗口访问基础能力与文件选择对话框。","local":true,"windows":["main"],"permissions":["core:default","dialog:default"]}}

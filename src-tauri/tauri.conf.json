@@ -1,0 +1,25 @@
+{
+  "$schema": "https://tauri.app/schema.json",
+  "productName": "出入库管理",
+  "version": "0.1.0",
+  "build": {
+    "beforeDevCommand": "pnpm dev",
+    "beforeBuildCommand": "pnpm build",
+    "devUrl": "http://localhost:5173",
+    "frontendDist": "../build/client"
+  },
+  "identifier": "com.inventory.control",
+  "app": {
+    "windows": [
+      {
+        "title": "出入库管理",
+        "width": 1280,
+        "height": 800
+      }
+    ]
+  },
+  "bundle": {
+    "active": true,
+    "targets": "all"
+  }
+}
