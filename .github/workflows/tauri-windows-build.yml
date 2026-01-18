@@ -1,0 +1,82 @@
+name: Build Tauri Windows Installers
+
+on:
+  push:
+    branches: [ main ]
+  workflow_dispatch: {}
+
+jobs:
+  build-windows:
+    runs-on: windows-latest
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Setup Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version: '18'
+
+      - name: Enable pnpm via corepack
+        run: |
+          corepack enable
+          corepack prepare pnpm@latest --activate
+
+      - name: Install dependencies
+        run: pnpm install --frozen-lockfile
+
+      - name: Setup Rust toolchain
+        uses: actions-rs/toolchain@v1
+        with:
+          toolchain: stable
+          override: true
+
+      - name: Add Windows target
+        run: rustup target add x86_64-pc-windows-msvc
+
+      - name: Install WiX and NSIS (Chocolatey)
+        run: |
+          choco install wixtoolset -y
+          choco install nsis -y
+
+      - name: Build frontend
+        run: pnpm build
+
+      - name: Build NSIS installer (.exe)
+        run: pnpm tauri build --target nsis
+
+      - name: Build MSI installer (.msi)
+        run: pnpm tauri build --target msi
+
+      - name: Upload Windows bundles (artifact)
+        uses: actions/upload-artifact@v4
+        with:
+          name: tauri-windows-bundles
+          path: src-tauri/target/release/bundle/windows/**
+
+      - name: Decode signing certificate (PFX)
+        if: secrets.WINDOWS_SIGNING_PFX != ''
+        shell: powershell
+        run: |
+          $pfx = [System.Convert]::FromBase64String("${{ secrets.WINDOWS_SIGNING_PFX }}")
+          [IO.File]::WriteAllBytes("cert.pfx", $pfx)
+
+      - name: Sign installers (signtool)
+        if: secrets.WINDOWS_SIGNING_PFX != '' && secrets.WINDOWS_SIGNING_PASSWORD != ''
+        shell: powershell
+        run: |
+          $pwd = "${{ secrets.WINDOWS_SIGNING_PASSWORD }}"
+          $files = Get-ChildItem -Path src-tauri/target/release/bundle/windows -Recurse -Include *.exe,*.msi
+          foreach ($f in $files) {
+            Write-Host "Signing $($f.FullName)"
+            signtool sign /f cert.pfx /p $pwd /tr http://timestamp.digicert.com /td sha256 /fd sha256 $f.FullName
+          }
+
+      - name: Create GitHub Release and upload installers
+        uses: softprops/action-gh-release@v1
+        with:
+          tag_name: build-${{ github.run_number }}
+          name: Build ${{ github.run_number }}
+          files: src-tauri/target/release/bundle/windows/**
+        env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
