@@ -114,8 +114,13 @@ if [ "$DRY_RUN" = false ]; then
   else
     git push "$REMOTE" "$TARGET"
   fi
+
+  # after successful push, switch back to MAIN
+  echo "Switching back to $MAIN"
+  run git checkout "$MAIN"
 else
   echo "DRY RUN: Would push $TARGET to $REMOTE"
+  echo "DRY RUN: git checkout $MAIN"
 fi
 
 echo "Done. If there were conflicts, resolve them locally and push when ready."
