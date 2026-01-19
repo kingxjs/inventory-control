@@ -8,3 +8,8 @@
 
 **/target/
 *.log
+
+# 忽略脚本生成的证书与密钥文件
+.secrets/
+*.pfx
+*.pfx.base64
