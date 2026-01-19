@@ -70,8 +70,8 @@ else
   if git ls-remote --exit-code --heads "$REMOTE" "$TARGET" >/dev/null 2>&1; then
     run git checkout -b "$TARGET" "$REMOTE/$TARGET"
   else
-    echo "Creating local $TARGET from $MAIN"
-    run git checkout -b "$TARGET" "$MAIN"
+    echo "Creating local $TARGET from remote $REMOTE/$MAIN"
+    run git checkout -b "$TARGET" "$REMOTE/$MAIN"
   fi
 fi
 
@@ -80,7 +80,7 @@ if [ "$REBASE" = true ]; then
   echo "Rebasing $TARGET onto $MAIN"
   if [ "$DRY_RUN" = false ]; then
     set +e
-    git rebase "$MAIN"
+    git rebase "$REMOTE/$MAIN"
     rc=$?
     set -e
     if [ $rc -ne 0 ]; then
@@ -94,7 +94,7 @@ else
   echo "Merging $MAIN into $TARGET"
   if [ "$DRY_RUN" = false ]; then
     set +e
-    git merge --no-edit "$MAIN"
+    git merge --no-edit "$REMOTE/$MAIN"
     rc=$?
     set -e
     if [ $rc -ne 0 ]; then
