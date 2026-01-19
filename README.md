@@ -67,6 +67,22 @@
 	 - `WINDOWS_SIGNING_PASSWORD`：PFX 密码
  - Workflow 会在存在以上 Secrets 时解码证书并使用 `signtool` 对 `.exe`/`.msi` 签名，然后创建 Release 并上传安装器。
 
+本地生成证书与脚本说明
+- 项目包含脚本 `scripts/generate_pfx_and_set_secrets.sh`，用于本地生成自签名 PFX、导出 Base64 并（可选）通过 `gh` CLI 上传为仓库 Secrets。脚本默认输出目录为 `.secrets`。
+- 推荐用法（在仓库根目录执行）：
+	```bash
+	chmod +x scripts/generate_pfx_and_set_secrets.sh
+	# 仅生成到 .secrets，不上传
+	scripts/generate_pfx_and_set_secrets.sh --password 'YourStrongPassword'
+
+	# 生成并上传到 GitHub Secrets（需已通过 `gh auth login` 并有写权限）
+	scripts/generate_pfx_and_set_secrets.sh --password 'YourStrongPassword' --out-dir .secrets --upload owner/repo
+	```
+- 默认与安全提示：
+	- 脚本会把 `cert.pfx` 与 `cert.pfx.base64` 写入指定的输出目录（默认 `.secrets`），仓库已在 `.gitignore` 中忽略该目录与 `*.pfx` / `*.pfx.base64`。
+	- 请勿将 PFX 或 Base64 内容提交到代码仓库；若需要在 CI 中使用，只需把 Base64 字符串写入 `WINDOWS_SIGNING_PFX`，并把密码写入 `WINDOWS_SIGNING_PASSWORD`。
+	- 上传 Secrets 时请使用受控账户并限制权限，生成后在目标 Windows 环境验证签名显示与兼容性。
+
  图标与应用名
  - 图标位于：`src-tauri/icons/`（占位 `icon.svg`，可从该 SVG 生成 `icon.ico` / `icon.icns`，文档见 `docs/icons.md`）
  - 应用显示名由 `src-tauri/tauri.conf.json` 的 `productName` 控制（已设为 `出入库管理`）。生成的 `.app` / 安装器会显示该名称；可执行文件名由 `src-tauri/Cargo.toml` 的 `package.name` 决定。
