@@ -34,8 +34,7 @@ jobs:
           choco install wixtoolset -y
           choco install nsis -y
       
-      - name: Build frontend
-        run: pnpm build
+      # Frontend build omitted; `pnpm tauri build` already builds frontend assets
       
       - name: Build installers
         run: |
