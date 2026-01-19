@@ -55,14 +55,14 @@ jobs:
           path: src-tauri/target/release/bundle/windows/**
 
       - name: Decode signing certificate (PFX)
-        if: secrets.WINDOWS_SIGNING_PFX != ''
+        if: ${{ secrets.WINDOWS_SIGNING_PFX != '' }}
         shell: powershell
         run: |
           $pfx = [System.Convert]::FromBase64String("${{ secrets.WINDOWS_SIGNING_PFX }}")
           [IO.File]::WriteAllBytes("cert.pfx", $pfx)
 
       - name: Sign installers (signtool)
-        if: secrets.WINDOWS_SIGNING_PFX != '' && secrets.WINDOWS_SIGNING_PASSWORD != ''
+        if: ${{ secrets.WINDOWS_SIGNING_PFX != '' && secrets.WINDOWS_SIGNING_PASSWORD != '' }}
         shell: powershell
         run: |
           $pwd = "${{ secrets.WINDOWS_SIGNING_PASSWORD }}"
