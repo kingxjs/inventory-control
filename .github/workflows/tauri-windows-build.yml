@@ -38,7 +38,9 @@ jobs:
         run: pnpm build
       
       - name: Build installers
-        run: pnpm tauri build --target nsis --target msi
+        run: |
+          pnpm tauri build --target nsis
+          pnpm tauri build --target msi
       
       - name: Decode signing certificate
         if: env.HAS_SIGNING_CERT == 'true'
