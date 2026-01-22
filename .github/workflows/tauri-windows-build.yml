@@ -87,13 +87,32 @@ jobs:
         env:
           HAS_SIGNING_CERT: ${{ secrets.WINDOWS_SIGNING_PFX != '' && secrets.WINDOWS_SIGNING_PASSWORD != '' }}
         run: |
-          $pwd = ConvertTo-SecureString -String "${{ secrets.WINDOWS_SIGNING_PASSWORD }}" -Force -AsPlainText
-          $cert = Get-PfxCertificate -FilePath "$env:TEMP\cert.pfx" -Password $pwd
-          Write-Host "Certificate Subject: $($cert.Subject)"
-          Write-Host "Certificate Thumbprint: $($cert.Thumbprint)"
-          Write-Host "Certificate Not Before: $($cert.NotBefore)"
-          Write-Host "Certificate Not After: $($cert.NotAfter)"
-          Write-Host "Certificate Has Private Key: $($cert.HasPrivateKey)"
+          try {
+            $pwd = "${{ secrets.WINDOWS_SIGNING_PASSWORD }}"
+            $cert = "$env:TEMP\cert.pfx"
+            
+            # 使用 .NET 类来读取证书
+            $certCollection = New-Object System.Security.Cryptography.X509Certificates.X509Certificate2Collection
+            $certCollection.Import($cert, $pwd, [System.Security.Cryptography.X509Certificates.X509KeyStorageFlags]::DefaultKeySet)
+            
+            $certificate = $certCollection[0]
+            Write-Host "Certificate Subject: $($certificate.Subject)"
+            Write-Host "Certificate Issuer: $($certificate.Issuer)"
+            Write-Host "Certificate Thumbprint: $($certificate.Thumbprint)"
+            Write-Host "Certificate Not Before: $($certificate.NotBefore)"
+            Write-Host "Certificate Not After: $($certificate.NotAfter)"
+            Write-Host "Certificate Has Private Key: $($certificate.HasPrivateKey)"
+            
+            if ($certificate.NotAfter -lt (Get-Date)) {
+              Write-Warning "Certificate has expired!"
+            }
+            if ($certificate.NotBefore -gt (Get-Date)) {
+              Write-Warning "Certificate is not yet valid!"
+            }
+          } catch {
+            Write-Error "Failed to load certificate: $_"
+            exit 1
+          }
       
       - name: Sign installers
         if: env.HAS_SIGNING_CERT == 'true'
