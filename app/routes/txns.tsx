@@ -104,11 +104,14 @@ export default function TxnsPage() {
   const [itemFilter, setItemFilter] = useState(searchParams.get("item_id") || "");
   const [operatorIdFilter, setOperatorIdFilter] = useState(searchParams.get("operator_id") || "");
   const [warehouseIdFilter, setWarehouseIdFilter] = useState(searchParams.get("warehouse_id") || "");
+  const [dateType, setDateType] = useState(searchParams.get("date_type") || "");
 
   const formatDate = (d: Date) => d.toISOString().slice(0, 10);
   const today = new Date();
+
   const defaultEndDate = formatDate(today);
-  const defaultStartDate = formatDate(new Date(today.getTime() - 6 * 24 * 60 * 60 * 1000));
+  const defaultStartDate = dateType == "day" ? defaultEndDate : formatDate(new Date(today.getTime() - 6 * 24 * 60 * 60 * 1000));
+
   const [startDate, setStartDate] = useState<string>(defaultStartDate);
   const [endDate, setEndDate] = useState<string>(defaultEndDate);
   const [pageIndex, setPageIndex] = useState(1);
@@ -157,10 +160,10 @@ export default function TxnsPage() {
     }
   };
 
-  const openFolder = async (path: string) => {
+  const revealInFolder = async (file_path: string) => {
     try {
-      await tauriInvoke("open_folder", { path });
-      console.log("Folder opened:", path);
+      await tauriInvoke("reveal_in_folder", { filePath: file_path });
+      console.log("Folder opened:", file_path);
     } catch (error) {
       console.error("Failed to open folder:", error);
     }
@@ -743,9 +746,7 @@ export default function TxnsPage() {
             <AlertDialogAction
               onClick={async () => {
                 try {
-                  const path = exportFilePath || "";
-                  const dir = path.lastIndexOf("/") > -1 ? path.substring(0, path.lastIndexOf("/")) : path;
-                  openFolder(dir);
+                  revealInFolder(exportFilePath);
                 } catch (e) {
                   const msg = e instanceof Error ? e.message : "打开文件夹失败";
                   toast.error(msg);

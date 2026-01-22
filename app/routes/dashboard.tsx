@@ -155,7 +155,7 @@ export default function DashboardPage() {
           <Button variant="secondary" onClick={() => navigate("/stock")}>
             进入库存管理
           </Button>
-          <Button onClick={() => navigate("/txns")}>查看今日流水</Button>
+          <Button onClick={() => navigate("/txns?date_type=day")}>查看今日流水</Button>
         </div>
       </div>
       <div className="grid gap-4 sm:grid-cols-2 xl:grid-cols-4">

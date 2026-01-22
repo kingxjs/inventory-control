@@ -1,5 +1,6 @@
 use std::fs;
 use std::path::{Path, PathBuf};
+use std::process::Command;
 
 use crate::domain::errors::{AppError, ErrorCode};
 
@@ -129,4 +130,103 @@ fn is_sensitive_dir(path: &Path) -> bool {
       || raw.starts_with(&format!("{}/", prefix))
       || raw.starts_with(&format!("{}\\", prefix))
   })
+}
+
+#[tauri::command]
+pub fn open_folder(path: String) -> Result<(), String> {
+    // 验证路径存在
+    if !Path::new(&path).exists() {
+        return Err(format!("Path does not exist: {}", path));
+    }
+
+    // 验证是目录
+    if !Path::new(&path).is_dir() {
+        return Err(format!("Path is not a directory: {}", path));
+    }
+
+    #[cfg(target_os = "windows")]
+    {
+        Command::new("explorer")
+            .arg(&path)
+            .spawn()
+            .map_err(|e| format!("Failed to open folder: {}", e))?;
+    }
+
+    #[cfg(target_os = "macos")]
+    {
+        Command::new("open")
+            .arg(&path)
+            .spawn()
+            .map_err(|e| format!("Failed to open folder: {}", e))?;
+    }
+
+    #[cfg(target_os = "linux")]
+    {
+        Command::new("xdg-open")
+            .arg(&path)
+            .spawn()
+            .map_err(|e| format!("Failed to open folder: {}", e))?;
+    }
+
+    Ok(())
+}
+
+// 新增：打开文件夹并选中文件
+#[tauri::command]
+pub fn reveal_in_folder(file_path: String) -> Result<(), String> {
+    let path = Path::new(&file_path);
+    
+    // 验证路径存在
+    if !path.exists() {
+        return Err(format!("Path does not exist: {}", file_path));
+    }
+
+    #[cfg(target_os = "windows")]
+    {
+        // 使用 /select 参数选中文件
+        Command::new("explorer")
+            .args(&["/select,", &file_path])
+            .spawn()
+            .map_err(|e| format!("Failed to reveal file: {}", e))?;
+    }
+
+    #[cfg(target_os = "macos")]
+    {
+        // 使用 -R 参数在 Finder 中显示并选中文件
+        Command::new("open")
+            .args(&["-R", &file_path])
+            .spawn()
+            .map_err(|e| format!("Failed to reveal file: {}", e))?;
+    }
+
+    #[cfg(target_os = "linux")]
+    {
+        // Linux 上不同文件管理器支持不同，这里尝试几种常见的
+        // 先尝试使用 dbus 调用文件管理器
+        let result = Command::new("dbus-send")
+            .args(&[
+                "--session",
+                "--dest=org.freedesktop.FileManager1",
+                "--type=method_call",
+                "/org/freedesktop/FileManager1",
+                "org.freedesktop.FileManager1.ShowItems",
+                &format!("array:string:file://{}", file_path),
+                "string:",
+            ])
+            .spawn();
+
+        if result.is_err() {
+            // 如果 dbus 失败，回退到打开父文件夹
+            if let Some(parent) = path.parent() {
+                Command::new("xdg-open")
+                    .arg(parent)
+                    .spawn()
+                    .map_err(|e| format!("Failed to open parent folder: {}", e))?;
+            } else {
+                return Err("Cannot determine parent folder".to_string());
+            }
+        }
+    }
+
+    Ok(())
 }

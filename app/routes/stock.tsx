@@ -370,10 +370,10 @@ export default function StockPage() {
     if (!selectedStockRow) return;
     await applyStockRow(selectedStockRow, mode);
   };
-  const openFolder = async (path: string) => {
+  const revealInFolder = async (file_path: string) => {
     try {
-      await tauriInvoke("open_folder", { path });
-      console.log("Folder opened:", path);
+      await tauriInvoke("reveal_in_folder", { filePath: file_path });
+      console.log("Folder opened:", file_path);
     } catch (error) {
       console.error("Failed to open folder:", error);
     }
@@ -424,9 +424,7 @@ export default function StockPage() {
             <AlertDialogAction
               onClick={async () => {
                 try {
-                  const path = exportFilePath || "";
-                  const dir = path.lastIndexOf("/") > -1 ? path.substring(0, path.lastIndexOf("/")) : path;
-                  openFolder(dir);
+                  revealInFolder(exportFilePath);
                 } catch (e) {
                   const msg = e instanceof Error ? e.message : "打开文件夹失败";
                   toast.error(msg);
@@ -445,7 +443,7 @@ export default function StockPage() {
           <div className="flex flex-wrap gap-2">
             <Button onClick={() => setInboundOpen(true)}>入库</Button>
             <Button variant="outline" onClick={handleExport}>
-              导出
+              导出库存
             </Button>
           </div>
         }
@@ -626,7 +624,7 @@ export default function StockPage() {
                             </DropdownMenuItem>
                             <DropdownMenuItem
                               onClick={() => {
-                                navigate(`/txns?slot_code=${encodeURIComponent(row.slot_code)}`);
+                                navigate(`/txns?slot_id=${encodeURIComponent(row.slot_id || "")}&rack_id=${encodeURIComponent(row.rack_id || "")}&&warehouse_id=${encodeURIComponent(row.warehouse_id || "")}`);
                               }}
                             >
                               查看流水

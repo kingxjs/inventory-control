@@ -1,49 +1,9 @@
-use inventory_control::api::{app_cmd, audit_cmd, auth_cmd, dashboard_cmd, data_cmd, item_cmd, operator_cmd, photo_cmd, rack_cmd, stock_cmd, system_cmd, txn_cmd, warehouse_cmd};
+use inventory_control::api::{app_cmd,audit_cmd, auth_cmd, dashboard_cmd, data_cmd, item_cmd, operator_cmd, photo_cmd, rack_cmd, stock_cmd, system_cmd, txn_cmd, warehouse_cmd};
+use inventory_control::infra::{fs};
 use inventory_control::infra::db;
 use inventory_control::state::AppState;
 use tauri::Manager;
 use tokio::sync::Mutex;
-use std::path::Path;
-use std::process::Command;
-
-#[tauri::command]
-fn open_folder(path: String) -> Result<(), String> {
-    // 验证路径存在
-    if !Path::new(&path).exists() {
-        return Err(format!("Path does not exist: {}", path));
-    }
-
-    // 验证是目录
-    if !Path::new(&path).is_dir() {
-        return Err(format!("Path is not a directory: {}", path));
-    }
-
-    #[cfg(target_os = "windows")]
-    {
-        Command::new("explorer")
-            .arg(&path)
-            .spawn()
-            .map_err(|e| format!("Failed to open folder: {}", e))?;
-    }
-
-    #[cfg(target_os = "macos")]
-    {
-        Command::new("open")
-            .arg(&path)
-            .spawn()
-            .map_err(|e| format!("Failed to open folder: {}", e))?;
-    }
-
-    #[cfg(target_os = "linux")]
-    {
-        Command::new("xdg-open")
-            .arg(&path)
-            .spawn()
-            .map_err(|e| format!("Failed to open folder: {}", e))?;
-    }
-
-    Ok(())
-}
 
 fn main() {
   tauri::Builder::default()
@@ -81,7 +41,9 @@ fn main() {
       Ok(())
     })
     .invoke_handler(tauri::generate_handler![
-      open_folder,
+      // 文件系统相关命令
+      fs::open_folder,
+      fs::reveal_in_folder,
       // 审计查询相关命令
       audit_cmd::list_audit_logs,
       audit_cmd::export_audit_logs,
@@ -142,6 +104,8 @@ fn main() {
       system_cmd::get_settings,
       system_cmd::set_settings,
       system_cmd::set_storage_root,
+      system_cmd::set_exports_dir,
+      system_cmd::set_backups_dir,
       // 库存管理相关命令
       stock_cmd::list_stock_by_slot,
       stock_cmd::list_stock_by_item,

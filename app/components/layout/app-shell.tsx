@@ -16,8 +16,8 @@ const navSections = [
     title: "物品与库存",
     items: [
       { to: "/stock", label: "库存管理" },
-      { to: "/items", label: "物品管理" },
       { to: "/txns", label: "流水查询" },
+      { to: "/items", label: "物品管理" },
     ],
   },
   {

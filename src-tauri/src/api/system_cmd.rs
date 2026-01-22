@@ -3,10 +3,12 @@ use serde_json::json;
 use tauri::{AppHandle, Emitter, State};
 
 use crate::domain::audit::AuditAction;
-use crate::domain::errors::AppError;
+use crate::domain::errors::{AppError, ErrorCode};
 use crate::api::command_guard;
 use crate::services::{permission_service, system_service};
 use crate::state::AppState;
+use crate::infra::fs;
+use crate::repo::meta_repo;
 
 #[derive(Debug, Deserialize)]
 pub struct SetSettingsInput {
@@ -109,6 +111,69 @@ pub async fn set_storage_root(
   *migrating = false;
 
   result
+}
+
+#[derive(Debug, Deserialize)]
+pub struct SetDirInput {
+  pub new_path: String,
+}
+
+#[tauri::command]
+pub async fn set_exports_dir(
+  state: State<'_, AppState>,
+  actor_operator_id: String,
+  input: SetDirInput,
+) -> Result<(), AppError> {
+  let _guard = state.write_lock.lock().await;
+  permission_service::require_admin_by_id(&state.pool, &actor_operator_id).await?;
+
+  let new_root = fs::normalize_path(&input.new_path)?;
+  fs::ensure_not_sensitive_dir(&new_root)?;
+  fs::ensure_dir_ready(&new_root)?;
+  if !fs::is_dir_writable(&new_root)? {
+    return Err(AppError::new(ErrorCode::ValidationError, "目标目录不可写"));
+  }
+
+  let audit_request = json!({"new_path": input.new_path.clone(), "actor_operator_id": actor_operator_id.clone()});
+  command_guard::run_with_audit(
+    &state.pool,
+    AuditAction::SystemSettingsUpdate,
+    None,
+    Some(audit_request),
+    || async {
+      meta_repo::set_meta_value(&state.pool, "exports_dir", &input.new_path).await
+    },
+  )
+  .await
+}
+
+#[tauri::command]
+pub async fn set_backups_dir(
+  state: State<'_, AppState>,
+  actor_operator_id: String,
+  input: SetDirInput,
+) -> Result<(), AppError> {
+  let _guard = state.write_lock.lock().await;
+  permission_service::require_admin_by_id(&state.pool, &actor_operator_id).await?;
+
+  let new_root = fs::normalize_path(&input.new_path)?;
+  fs::ensure_not_sensitive_dir(&new_root)?;
+  fs::ensure_dir_ready(&new_root)?;
+  if !fs::is_dir_writable(&new_root)? {
+    return Err(AppError::new(ErrorCode::ValidationError, "目标目录不可写"));
+  }
+
+  let audit_request = json!({"new_path": input.new_path.clone(), "actor_operator_id": actor_operator_id.clone()});
+  command_guard::run_with_audit(
+    &state.pool,
+    AuditAction::SystemSettingsUpdate,
+    None,
+    Some(audit_request),
+    || async {
+      meta_repo::set_meta_value(&state.pool, "backups_dir", &input.new_path).await
+    },
+  )
+  .await
 }
 
 fn emit_migration_progress(

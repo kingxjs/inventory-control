@@ -16,7 +16,11 @@ pub async fn export_items(pool: &SqlitePool) -> Result<ExportResult, AppError> {
   let storage_root = meta_repo::get_meta_value(pool, "storage_root")
     .await?
     .ok_or_else(|| AppError::new(ErrorCode::NotFound, "存储根目录未配置"))?;
-  let export_dir = std::path::PathBuf::from(storage_root).join("exports");
+  // 优先使用可配置的 exports_dir，否则回退到 storage_root/exports
+  let export_dir = match meta_repo::get_meta_value(pool, "exports_dir").await? {
+    Some(dir) if !dir.is_empty() => std::path::PathBuf::from(dir),
+    _ => std::path::PathBuf::from(&storage_root).join("exports"),
+  };
   std::fs::create_dir_all(&export_dir)
     .map_err(|_| AppError::new(ErrorCode::IoError, "创建导出目录失败"))?;
 

@@ -400,7 +400,10 @@ pub async fn export_txns(
   let storage_root = meta_repo::get_meta_value(pool, "storage_root")
     .await?
     .ok_or_else(|| AppError::new(ErrorCode::NotFound, "存储根目录未配置"))?;
-  let export_dir = PathBuf::from(storage_root).join("exports");
+  let export_dir = match meta_repo::get_meta_value(pool, "exports_dir").await? {
+    Some(dir) if !dir.is_empty() => PathBuf::from(dir),
+    _ => PathBuf::from(storage_root).join("exports"),
+  };
   std::fs::create_dir_all(&export_dir)
     .map_err(|_| AppError::new(ErrorCode::IoError, "创建导出目录失败"))?;
 

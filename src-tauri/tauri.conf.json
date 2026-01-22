@@ -12,7 +12,7 @@
   "app": {
     "windows": [
       {
-        "title": "出入库管理系统",
+        "title": "出入库登记系统",
         "width": 1280,
         "height": 800
       }
