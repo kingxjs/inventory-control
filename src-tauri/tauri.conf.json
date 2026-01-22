@@ -32,7 +32,7 @@
     "copyright": "Copyright © 2026 迷糊虫. All rights reserved.",
     "shortDescription": "出入库登记系统",
     "longDescription": "迷糊虫出品的库存管理桌面应用，提供出入库登记、库存查询和报表功能，界面语言为中文。",
-    "category": "public.app-category.business",
+    "category": "Business",
     "externalBin": [],
     "windows": {
       "certificateThumbprint": null,
@@ -43,26 +43,14 @@
       },
       "allowDowngrades": false,
       "wix": {
-        "language": "zh-CN",
-        "template": null,
-        "fragmentPaths": [],
-        "componentRefs": [],
-        "featureGroupRefs": [],
-        "featureRefs": [],
-        "mergeRefs": [],
-        "skipWebviewInstall": false,
-        "licenseText": null,
-        "enableElevatedUpdateRuntime": false
+        "language": ["zh-CN"]
       },
       "nsis": {
-        "language": "SimpChinese",
+        "languages": ["SimpChinese"],
         "displayLanguageSelector": false,
         "installerIcon": "icons/icon.ico",
         "installMode": "perMachine",
-        "license": null,
-        "headerImage": null,
-        "sidebarImage": null,
-        "compressionLevel": "ultra"
+        "compression": "lzma"
       }
     },
     "macOS": {
