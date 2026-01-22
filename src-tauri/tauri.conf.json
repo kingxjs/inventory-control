@@ -27,7 +27,12 @@
       "icons/icon.png"
     ],
     "windows": {
-      "subsystem": "windows"
+      "webviewInstallMode": {
+        "type": "downloadBootstrapper"
+      },
+      "allowDowngrades": false,
+      "wix": null,
+      "nsis": null
     }
   }
 }
