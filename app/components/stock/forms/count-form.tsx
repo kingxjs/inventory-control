@@ -14,10 +14,12 @@ import { ImagePicker } from "~/components/common/image-picker";
 import type { CountFormValues, SlotPickerValue } from "../types";
 
 import { ConfirmButton } from "~/components/common/confirm-button";
-import {  getSession } from "~/lib/auth";
+import { getSession } from "~/lib/auth";
 
-type Props = { onClose?: () => void
-  form?: UseFormReturn<CountFormValues>; };
+type Props = {
+  onClose?: () => void;
+  form?: UseFormReturn<CountFormValues>;
+};
 
 export default function CountForm({ onClose, form: externalForm }: Props) {
   const form = externalForm ?? useForm<CountFormValues>({ defaultValues: { item_id: "", slot_id: "", actual_qty: "", occurred_at: "", operator_id: getSession()?.actor_operator_id || "", note: "" } });
@@ -50,7 +52,10 @@ export default function CountForm({ onClose, form: externalForm }: Props) {
       }
     };
     load();
-    return () => { active = false; Object.values(previewUrls).forEach((u) => URL.revokeObjectURL(u)); };
+    return () => {
+      active = false;
+      Object.values(previewUrls).forEach((u) => URL.revokeObjectURL(u));
+    };
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [selectedPaths.join("|")]);
 
@@ -70,65 +75,108 @@ export default function CountForm({ onClose, form: externalForm }: Props) {
     }
   };
 
-
   return (
     <Form {...form}>
       <div className="grid gap-4 md:grid-cols-2">
-        <FormField control={form.control} name="item_id" rules={{ validate: (value) => (value ? true : "请选择物品") }} render={({ field }) => (
-          <FormItem className="grid gap-2">
-            <FormLabel>物品</FormLabel>
-            <FormControl>
-              <ItemPicker value={field.value} onChange={field.onChange} placeholder="选择库存后自动带出" disabled />
-            </FormControl>
-            <FormMessage />
-          </FormItem>
-        )} />
-        <FormField control={form.control} name="slot_id" rules={{ validate: (value) => (value ? true : "请选择盘点位置") }} render={({ field }) => (
-          <FormItem className="grid gap-2 md:col-span-2">
-            <FormControl>
-              <SlotCascaderPicker label="盘点位置" value={target} onChange={(next) => { setLocalTarget(next); field.onChange(next.slotId || ""); }} disabled />
-            </FormControl>
-            <FormMessage />
-          </FormItem>
-        )} />
-        <FormField control={form.control} name="actual_qty" rules={{ validate: (value) => (Number(value) >= 0 ? true : "请输入有效实盘数量") }} render={({ field }) => (
-          <FormItem className="grid gap-2">
-            <FormLabel>实盘数量</FormLabel>
-            <FormControl>
-              <Input placeholder="请输入实际数量" type="number" {...field} />
-            </FormControl>
-            <FormMessage />
-          </FormItem>
-        )} />
-        <FormField control={form.control} name="operator_id" rules={{ validate: (value) => (value.trim() ? true : "请输入记录人") }} render={({ field }) => (
-          <FormItem className="grid gap-2">
-            <FormLabel>记录人</FormLabel>
-            <FormControl>
-              <OperatorPicker value={field.value} onChange={field.onChange} placeholder="选择记录人" />
-            </FormControl>
-            <FormMessage />
-          </FormItem>
-        )} />
-        <FormField control={form.control} name="occurred_at" rules={{ validate: (value) => (value.trim() ? true : "请选择发生时间") }} render={({ field }) => (
-          <FormItem className="grid gap-2">
-            <FormLabel>发生时间</FormLabel>
-            <FormControl>
-              <DateTimePicker value={field.value} onChange={field.onChange} />
-            </FormControl>
-            <FormMessage />
-          </FormItem>
-        )} />
-        <FormField control={form.control} name="note" render={({ field }) => (
-          <FormItem className="grid gap-2 md:col-span-2">
-            <FormLabel>备注</FormLabel>
-            <FormControl>
-              <Textarea placeholder="补充说明" {...field} />
-            </FormControl>
-          </FormItem>
-        )} />
+        <FormField
+          control={form.control}
+          name="item_id"
+          rules={{ validate: (value) => (value ? true : "请选择物品") }}
+          render={({ field }) => (
+            <FormItem className="grid gap-2">
+              <FormLabel>物品</FormLabel>
+              <FormControl>
+                <ItemPicker value={field.value} onChange={field.onChange} placeholder="选择库存后自动带出" disabled />
+              </FormControl>
+              <FormMessage />
+            </FormItem>
+          )}
+        />
+        <FormField
+          control={form.control}
+          name="slot_id"
+          rules={{ validate: (value) => (value ? true : "请选择盘点位置") }}
+          render={({ field }) => (
+            <FormItem className="grid gap-2 md:col-span-2">
+              <FormControl>
+                <SlotCascaderPicker
+                  label="盘点位置"
+                  value={target}
+                  onChange={(next) => {
+                    setLocalTarget(next);
+                    field.onChange(next.slotId || "");
+                  }}
+                  disabled
+                />
+              </FormControl>
+              <FormMessage />
+            </FormItem>
+          )}
+        />
+        <FormField
+          control={form.control}
+          name="actual_qty"
+          rules={{ validate: (value) => (Number(value) >= 0 ? true : "请输入有效实盘数量") }}
+          render={({ field }) => (
+            <FormItem className="grid gap-2">
+              <FormLabel>实盘数量</FormLabel>
+              <FormControl>
+                <Input placeholder="请输入实际数量" type="number" {...field} />
+              </FormControl>
+              <FormMessage />
+            </FormItem>
+          )}
+        />
+        <FormField
+          control={form.control}
+          name="operator_id"
+          rules={{ validate: (value) => (value.trim() ? true : "请输入记录人") }}
+          render={({ field }) => (
+            <FormItem className="grid gap-2">
+              <FormLabel>记录人</FormLabel>
+              <FormControl>
+                <OperatorPicker value={field.value} onChange={field.onChange} placeholder="选择记录人" />
+              </FormControl>
+              <FormMessage />
+            </FormItem>
+          )}
+        />
+        <FormField
+          control={form.control}
+          name="occurred_at"
+          rules={{ validate: (value) => (value.trim() ? true : "请选择发生时间") }}
+          render={({ field }) => (
+            <FormItem className="grid gap-2">
+              <FormLabel>发生时间</FormLabel>
+              <FormControl>
+                <DateTimePicker value={field.value} onChange={field.onChange} />
+              </FormControl>
+              <FormMessage />
+            </FormItem>
+          )}
+        />
+        <FormField
+          control={form.control}
+          name="note"
+          render={({ field }) => (
+            <FormItem className="grid gap-2 md:col-span-2">
+              <FormLabel>备注</FormLabel>
+              <FormControl>
+                <Textarea placeholder="补充说明" {...field} />
+              </FormControl>
+            </FormItem>
+          )}
+        />
         <ImagePicker label="图片" selectedPaths={selectedPaths} previewUrls={previewUrls} onPick={pickPhotos} onRemove={removePhoto} />
         <div className="grid gap-1 sm:grid-cols-1 md:col-span-2">
-          <ConfirmButton className="w-full" label="提交" confirmText="确认提交？" onConfirm={async () => { await submitLocal(); }} />
+          <ConfirmButton
+            className="w-full"
+            label="提交"
+            confirmText="确认提交？"
+            onConfirm={async () => {
+              await submitLocal();
+            }}
+          />
         </div>
       </div>
     </Form>
