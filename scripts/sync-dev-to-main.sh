@@ -115,9 +115,9 @@ if [ "$DRY_RUN" = false ]; then
     git push "$REMOTE" "$TARGET"
   fi
 
-  # after successful push, switch back to MAIN
-  echo "Switching back to $MAIN"
-  run git checkout "$MAIN"
+  # after successful push, switch back to TARGET (dev)
+  echo "Switching back to $TARGET"
+  run git checkout "$TARGET"
 else
   echo "DRY RUN: Would push $TARGET to $REMOTE"
   echo "DRY RUN: git checkout $MAIN"
@@ -146,13 +146,13 @@ if [ "$DRY_RUN" = false ]; then
     echo "gh CLI not found; skipping PR creation" >&2
   fi
 
-  # after push/PR, switch back to MAIN
-  echo "Switching back to $MAIN"
-  run git checkout "$MAIN"
+  # after push/PR, switch back to TARGET (dev)
+  echo "Switching back to $TARGET"
+  run git checkout "$TARGET"
 else
   echo "DRY RUN: Would push $TARGET to $REMOTE"
   echo "DRY RUN: gh pr create --head $TARGET --base $MAIN --title 'Merge $TARGET into $MAIN' --body 'Automated PR from $TARGET to $MAIN'"
-  echo "DRY RUN: git checkout $MAIN"
+  echo "DRY RUN: git checkout $TARGET"
 fi
 
 echo "Done. If there were conflicts, resolve them locally and push when ready."
