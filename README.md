@@ -23,6 +23,11 @@
 
  3. 生产构建（生成前端静态资源并构建本机包）
 
+```
+src-tauri/tauri.conf.json 修改version字段以更新版本号
+src-tauri/Cargo.toml 修改version字段以更新版本号
+```
+
  ```bash
  pnpm build
  pnpm tauri build
