@@ -266,6 +266,7 @@ jobs:
         run: |
           gh release delete "v$VERSION" --yes || true
           git push origin ":refs/tags/v$VERSION" || true
+          git tag -d "v$VERSION" || true
           git tag -a "v$VERSION" -m "Release v$VERSION"
           git push origin "v$VERSION"
       
@@ -278,7 +279,6 @@ jobs:
           prerelease: false
           files: release-files/*
           fail_on_unmatched_files: true
-          # 如果 release 已存在则覆盖文件
-          overwrite: true
+          generate_release_notes: true
         env:
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
