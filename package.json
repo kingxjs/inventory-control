@@ -1,7 +1,12 @@
 {
   "name": "inventory-control",
+  "version": "0.1.2",
   "private": true,
   "type": "module",
+  "description": "迷糊虫出品的库存管理应用",
+  "author": "迷糊虫",
+  "company": "迷糊虫北京科技有限公司",
+  "license": "MIT",
   "scripts": {
     "build": "react-router build",
     "dev": "react-router dev",
