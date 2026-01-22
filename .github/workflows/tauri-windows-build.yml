@@ -64,14 +64,13 @@ jobs:
           choco install wixtoolset -y
           choco install nsis -y
       
-      # 使用 --release 优化并行编译
       - name: Build Windows installers
         run: pnpm tauri build --bundles nsis msi
         env:
-          CARGO_INCREMENTAL: 0  # 禁用增量编译（CI 环境更快）
-          CARGO_PROFILE_RELEASE_LTO: false  # 禁用 LTO
-          CARGO_PROFILE_RELEASE_CODEGEN_UNITS: 16  # 增加代码生成单元（并行编译）
-          CARGO_NET_GIT_FETCH_WITH_CLI: true  # 使用 git CLI 加速下载
+          CARGO_INCREMENTAL: 0
+          CARGO_PROFILE_RELEASE_LTO: false
+          CARGO_PROFILE_RELEASE_CODEGEN_UNITS: 16
+          CARGO_NET_GIT_FETCH_WITH_CLI: true
       
       - name: Decode signing certificate
         if: env.HAS_SIGNING_CERT == 'true'
@@ -81,6 +80,20 @@ jobs:
         run: |
           $pfx = [System.Convert]::FromBase64String("${{ secrets.WINDOWS_SIGNING_PFX }}")
           [IO.File]::WriteAllBytes("$env:TEMP\cert.pfx", $pfx)
+      
+      - name: Verify certificate
+        if: env.HAS_SIGNING_CERT == 'true'
+        shell: powershell
+        env:
+          HAS_SIGNING_CERT: ${{ secrets.WINDOWS_SIGNING_PFX != '' && secrets.WINDOWS_SIGNING_PASSWORD != '' }}
+        run: |
+          $pwd = ConvertTo-SecureString -String "${{ secrets.WINDOWS_SIGNING_PASSWORD }}" -Force -AsPlainText
+          $cert = Get-PfxCertificate -FilePath "$env:TEMP\cert.pfx" -Password $pwd
+          Write-Host "Certificate Subject: $($cert.Subject)"
+          Write-Host "Certificate Thumbprint: $($cert.Thumbprint)"
+          Write-Host "Certificate Not Before: $($cert.NotBefore)"
+          Write-Host "Certificate Not After: $($cert.NotAfter)"
+          Write-Host "Certificate Has Private Key: $($cert.HasPrivateKey)"
       
       - name: Sign installers
         if: env.HAS_SIGNING_CERT == 'true'
@@ -92,6 +105,7 @@ jobs:
           if (-not (Test-Path $signtool)) {
             $signtool = Get-ChildItem "C:\Program Files (x86)\Windows Kits" -Recurse -Filter "signtool.exe" | Select-Object -First 1 -ExpandProperty FullName
           }
+          Write-Host "Using signtool at: $signtool"
           
           $pwd = "${{ secrets.WINDOWS_SIGNING_PASSWORD }}"
           $cert = "$env:TEMP\cert.pfx"
@@ -99,10 +113,33 @@ jobs:
           $files = Get-ChildItem -Path src-tauri/target/release/bundle -Recurse -Include *.exe,*.msi
           foreach ($f in $files) {
             Write-Host "Signing $($f.FullName)"
-            & $signtool sign /f $cert /p $pwd /tr http://timestamp.digicert.com /td sha256 /fd sha256 $f.FullName
+            & $signtool sign /f $cert /p $pwd /tr http://timestamp.digicert.com /td sha256 /fd sha256 /v $f.FullName
             if ($LASTEXITCODE -ne 0) { 
               Write-Error "Failed to sign $($f.FullName)"
               exit 1 
+            }
+            Write-Host "Successfully signed $($f.FullName)"
+          }
+      
+      - name: Verify signatures
+        if: env.HAS_SIGNING_CERT == 'true'
+        shell: powershell
+        env:
+          HAS_SIGNING_CERT: ${{ secrets.WINDOWS_SIGNING_PFX != '' && secrets.WINDOWS_SIGNING_PASSWORD != '' }}
+        run: |
+          $signtool = "C:\Program Files (x86)\Windows Kits\10\bin\10.0.22621.0\x64\signtool.exe"
+          if (-not (Test-Path $signtool)) {
+            $signtool = Get-ChildItem "C:\Program Files (x86)\Windows Kits" -Recurse -Filter "signtool.exe" | Select-Object -First 1 -ExpandProperty FullName
+          }
+          
+          $files = Get-ChildItem -Path src-tauri/target/release/bundle -Recurse -Include *.exe,*.msi
+          foreach ($f in $files) {
+            Write-Host "Verifying signature for $($f.FullName)"
+            & $signtool verify /pa /v $f.FullName
+            if ($LASTEXITCODE -eq 0) {
+              Write-Host "✓ Signature verified for $($f.Name)" -ForegroundColor Green
+            } else {
+              Write-Warning "✗ Signature verification failed for $($f.Name)"
             }
           }
 
