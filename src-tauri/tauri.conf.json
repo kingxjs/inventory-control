@@ -2,12 +2,6 @@
   "$schema": "https://tauri.app/schema.json",
   "productName": "Inventory Control",
   "version": "0.1.2",
-  "package": {
-    "description": "迷糊虫出品的库存管理应用，界面语言为中文",
-    "license": "MIT",
-    "authors": ["迷糊虫"],
-    "copyright": "Copyright (C) 2026 迷糊虫北京科技有限公司"
-  },
   "build": {
     "beforeDevCommand": "pnpm dev",
     "beforeBuildCommand": "pnpm build",
@@ -32,10 +26,6 @@
       "icons/icon.icns",
       "icons/icon.png"
     ],
-    "resources": [
-      "icons/**",
-      "assets/**"
-    ],
     "shortDescription": "出入库登记系统",
     "longDescription": "迷糊虫出品的库存管理桌面应用，提供出入库登记、库存查询和报表功能，界面语言为中文。",
     "category": "public.app-category.business",
@@ -44,37 +34,12 @@
       "webviewInstallMode": {
         "type": "downloadBootstrapper"
       },
-      "allowDowngrades": false,
-      "wix": {
-        "language": 2052
-      },
-      "nsis": {
-        "oneClick": false,
-        "perMachine": false,
-        "allowToChangeInstallationDirectory": true,
-        "createDesktopShortcut": true,
-        "createStartMenuShortcut": true,
-        "installerIconPath": "icons/icon.ico",
-        "uninstallerIconPath": "icons/icon.ico"
-      }
+      "allowDowngrades": false
     },
     "macOS": {
       "frameworks": [],
       "minimumSystemVersion": "10.13",
-      "license": null,
-      "signing": null,
       "exceptionDomain": null
-    },
-    "deb": {
-      "depends": [
-        "libc6",
-        "libgcc1"
-      ],
-      "priority": "optional",
-      "compressed": true
-    },
-    "appImage": {
-      "sign": false
     }
   }
 }

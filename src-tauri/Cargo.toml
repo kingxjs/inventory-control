@@ -37,3 +37,11 @@ features = ["rt-multi-thread", "macros"]
 
 [dev-dependencies]
 tempfile = "3.12"
+
+# Windows 子系统配置 - 隐藏控制台窗口
+[profile.release]
+panic = "abort"
+codegen-units = 1
+lto = true
+opt-level = "s"
+strip = true

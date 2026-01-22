@@ -1,3 +1,5 @@
+#![cfg_attr(not(debug_assertions), windows_subsystem = "windows")]
+
 use inventory_control::api::{app_cmd,audit_cmd, auth_cmd, dashboard_cmd, data_cmd, item_cmd, operator_cmd, photo_cmd, rack_cmd, stock_cmd, system_cmd, txn_cmd, warehouse_cmd};
 use inventory_control::infra::{fs};
 use inventory_control::infra::db;
