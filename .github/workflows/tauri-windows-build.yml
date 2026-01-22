@@ -69,6 +69,9 @@ jobs:
               exit 1 
             }
           }
+
+      - name: Show Windows bundle output
+        run: Get-ChildItem -Path src-tauri/target/release/bundle -Recurse | ForEach-Object { Write-Host $_.FullName }
       
       - name: Upload Windows artifacts
         uses: actions/upload-artifact@v4
@@ -104,6 +107,9 @@ jobs:
       
       - name: Build macOS Universal Binary
         run: pnpm tauri build --target universal-apple-darwin
+
+      - name: Show macOS bundle output
+        run: ls -R src-tauri/target/universal-apple-darwin/release/bundle || true
       
       - name: Import Code-Signing Certificates
         if: env.HAS_MACOS_CERT == 'true'
@@ -137,18 +143,12 @@ jobs:
     needs: [build-windows, build-macos]
     runs-on: ubuntu-latest
     steps:
-      - name: Download all artifacts
-        uses: actions/download-artifact@v4
-        with:
-          path: artifacts
-      
-      - name: Display structure of downloaded files
-        run: ls -R artifacts
       - name: Checkout repository
         uses: actions/checkout@v4
         with:
           fetch-depth: 0
           token: ${{ secrets.GITHUB_TOKEN }}
+      
       - name: Setup Node.js
         uses: actions/setup-node@v4
         with:
@@ -158,6 +158,20 @@ jobs:
         id: get_version
         run: |
           echo "version=$(node -p 'require("./package.json").version')" >> "$GITHUB_OUTPUT"
+
+      - name: Download all artifacts
+        uses: actions/download-artifact@v4
+        with:
+          path: artifacts
+      
+      - name: Display structure of downloaded files
+        run: ls -R artifacts
+
+      - name: Prepare release files
+        run: |
+          mkdir -p release-files
+          find artifacts -type f \( -name "*.exe" -o -name "*.msi" -o -name "*.dmg" -o -name "*.app" \) -exec cp {} release-files/ \;
+          ls -lh release-files/
 
       - name: Create and push git tag
         id: create_tag
@@ -181,8 +195,6 @@ jobs:
           name: Release v${{ steps.get_version.outputs.version }}
           draft: false
           prerelease: false
-          files: |
-            artifacts/windows-installers/**/*
-            artifacts/macos-installers/**/*
+          files: release-files/*
         env:
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
