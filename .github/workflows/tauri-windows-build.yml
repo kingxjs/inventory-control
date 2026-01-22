@@ -156,7 +156,8 @@ jobs:
 
       - name: Get version from package.json
         id: get_version
-        run: echo "version=$(node -p \"require('./package.json').version\")" >> $GITHUB_OUTPUT
+        run: |
+          echo "version=$(node -p 'require("./package.json").version')" >> "$GITHUB_OUTPUT"
 
       - name: Create and push git tag
         id: create_tag
