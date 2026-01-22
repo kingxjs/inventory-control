@@ -12,9 +12,11 @@
   "app": {
     "windows": [
       {
+        "label": "main",
         "title": "出入库登记系统",
         "width": 1280,
-        "height": 800
+        "height": 800,
+        "visible": false
       }
     ]
   },
