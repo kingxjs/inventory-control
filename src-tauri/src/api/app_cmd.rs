@@ -7,6 +7,8 @@ pub async fn close_splashscreen(window: tauri::WebviewWindow) -> Result<(), Stri
     splash.close().map_err(|err| err.to_string())?;
   }
   if let Some(main) = app.get_webview_window("main") {
+    // 在显示前先居中窗口
+    main.center().map_err(|err| err.to_string())?;
     main.show().map_err(|err| err.to_string())?;
     main.set_focus().map_err(|err| err.to_string())?;
   }

@@ -1,6 +1,6 @@
 {
   "$schema": "https://tauri.app/schema.json",
-  "productName": "Inventory Control",
+  "productName": "出入库登记系统",
   "version": "0.1.3",
   "build": {
     "beforeDevCommand": "pnpm dev",
@@ -16,6 +16,7 @@
         "title": "出入库登记系统",
         "width": 1280,
         "height": 800,
+        "center": true,
         "visible": false
       }
     ]

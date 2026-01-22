@@ -15,8 +15,14 @@ fn main() {
       let main_window = app
         .get_webview_window("main")
         .ok_or("主窗口未初始化")?;
+      
+      // 先隐藏主窗口
       main_window.hide().map_err(|err| err.to_string())?;
+      
+      // 确保主窗口居中（即使隐藏时也设置好位置）
+      main_window.center().map_err(|err| err.to_string())?;
 
+      // 创建启动画面
       tauri::WebviewWindowBuilder::new(
         app,
         "splashscreen",
