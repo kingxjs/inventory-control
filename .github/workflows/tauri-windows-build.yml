@@ -1,7 +1,7 @@
 name: Build Tauri Multi-Platform Installers
 on:
   push:
-    branches: [ build ]
+    branches: [ main ]
   workflow_dispatch: {}
 
 jobs:

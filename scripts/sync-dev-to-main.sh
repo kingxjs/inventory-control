@@ -3,7 +3,7 @@ set -euo pipefail
 
 REMOTE=origin
 MAIN=main
-TARGET=build
+TARGET=dev
 REBASE=false
 FORCE=false
 DRY_RUN=false
@@ -120,6 +120,38 @@ if [ "$DRY_RUN" = false ]; then
   run git checkout "$MAIN"
 else
   echo "DRY RUN: Would push $TARGET to $REMOTE"
+  echo "DRY RUN: git checkout $MAIN"
+fi
+# push changes and create a PR from TARGET -> MAIN using gh CLI
+if [ "$DRY_RUN" = false ]; then
+  if [ "$REBASE" = true ] && [ "$FORCE" = true ]; then
+    echo "Pushing with --force-with-lease"
+    git push --force-with-lease "$REMOTE" "$TARGET"
+  else
+    git push "$REMOTE" "$TARGET"
+  fi
+
+  # attempt to create a PR from TARGET to MAIN using gh (if available)
+  if command -v gh >/dev/null 2>&1; then
+    set +e
+    pr_number=$(gh pr list --head "$TARGET" --base "$MAIN" --json number --jq '.[0].number' 2>/dev/null || true)
+    set -e
+    if [ -z "$pr_number" ]; then
+      echo "Creating PR: $TARGET -> $MAIN"
+      gh pr create --head "$TARGET" --base "$MAIN" --title "Merge $TARGET into $MAIN" --body "Automated PR from $TARGET to $MAIN"
+    else
+      echo "PR already exists: #$pr_number"
+    fi
+  else
+    echo "gh CLI not found; skipping PR creation" >&2
+  fi
+
+  # after push/PR, switch back to MAIN
+  echo "Switching back to $MAIN"
+  run git checkout "$MAIN"
+else
+  echo "DRY RUN: Would push $TARGET to $REMOTE"
+  echo "DRY RUN: gh pr create --head $TARGET --base $MAIN --title 'Merge $TARGET into $MAIN' --body 'Automated PR from $TARGET to $MAIN'"
   echo "DRY RUN: git checkout $MAIN"
 fi
 
