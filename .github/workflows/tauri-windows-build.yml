@@ -328,7 +328,16 @@ jobs:
       - name: Prepare release files
         run: |
           mkdir -p release-files
-          find artifacts -type f \( -name "*.exe" -o -name "*.msi" -o -name "*.dmg" -o -name "*.app" \) -exec cp {} release-files/ \;
+          
+          # 重命名文件为英文（避免 GitHub Release 中文文件名问题）
+          find artifacts -type f -name "*.exe" -o -name "*.msi" -o -name "*.dmg" | while read file; do
+            filename=$(basename "$file")
+            # 将中文替换为英文
+            newname=$(echo "$filename" | sed 's/出入库登记系统/InventoryControl/g')
+            cp "$file" "release-files/$newname"
+            echo "Renamed: $filename -> $newname"
+          done
+          
           ls -lh release-files/
 
       - name: Create and push git tag
