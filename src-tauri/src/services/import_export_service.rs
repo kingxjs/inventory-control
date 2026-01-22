@@ -80,16 +80,16 @@ pub async fn export_txns(pool: &SqlitePool) -> Result<ExportResult, AppError> {
 
   writer
     .write_record([
-      "type",
-      "item_code",
-      "from_slot_code",
-      "to_slot_code",
-      "qty",
-      "actual_qty",
-      "occurred_at",
-      "operator_username",
-      "note",
-      "ref_txn_no",
+      "类型",
+      "物品",
+      "来源库位",
+      "目标库位",
+      "数量",
+      "实盘数量",
+      "发生时间",
+      "记录人",
+      "备注",
+      "关联流水号",
     ])
     .map_err(|_| AppError::new(ErrorCode::IoError, "写入导出文件失败"))?;
 
@@ -98,13 +98,13 @@ pub async fn export_txns(pool: &SqlitePool) -> Result<ExportResult, AppError> {
     writer
       .write_record([
         txn.txn_type,
-        txn.item_code,
+        txn.item_name,
         txn.from_slot_code.unwrap_or_default(),
         txn.to_slot_code.unwrap_or_default(),
         txn.qty.to_string(),
         txn.actual_qty.map(|v| v.to_string()).unwrap_or_default(),
         txn.occurred_at.to_string(),
-        txn.operator_username,
+        txn.operator_display_name,
         txn.note.unwrap_or_default(),
         txn.ref_txn_no.unwrap_or_default(),
       ])

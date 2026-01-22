@@ -438,20 +438,22 @@ pub async fn count_txns(pool: &SqlitePool) -> Result<i64, AppError> {
 #[derive(Debug)]
 pub struct TxnExportRow {
     pub txn_type: String,
-    pub item_code: String,
+    // 使用显示名替代编码
+    pub item_name: String,
     pub from_slot_code: Option<String>,
     pub to_slot_code: Option<String>,
     pub qty: i64,
     pub actual_qty: Option<i64>,
     pub occurred_at: i64,
-    pub operator_username: String,
+    pub operator_display_name: String,
     pub note: Option<String>,
     pub ref_txn_no: Option<String>,
 }
 
 pub async fn list_txns_export(pool: &SqlitePool) -> Result<Vec<TxnExportRow>, AppError> {
+    // 导出时使用物品显示名与操作员显示名，库位仍使用 code 作为可读值
     let rows = sqlx::query(
-        "SELECT txn.type AS txn_type, item.item_code AS item_code, from_slot.code AS from_slot_code, to_slot.code AS to_slot_code, txn.qty AS qty, txn.actual_qty AS actual_qty, txn.occurred_at AS occurred_at, operator.username AS operator_username, txn.note AS note, ref.txn_no AS ref_txn_no FROM txn JOIN item ON txn.item_id = item.id JOIN operator ON txn.operator_id = operator.id LEFT JOIN slot AS from_slot ON txn.from_slot_id = from_slot.id LEFT JOIN slot AS to_slot ON txn.to_slot_id = to_slot.id LEFT JOIN txn AS ref ON txn.ref_txn_id = ref.id ORDER BY txn.created_at DESC",
+        "SELECT txn.type AS txn_type, item.name AS item_name, from_slot.code AS from_slot_code, to_slot.code AS to_slot_code, txn.qty AS qty, txn.actual_qty AS actual_qty, txn.occurred_at AS occurred_at, operator.display_name AS operator_display_name, txn.note AS note, ref.txn_no AS ref_txn_no FROM txn JOIN item ON txn.item_id = item.id JOIN operator ON txn.operator_id = operator.id LEFT JOIN slot AS from_slot ON txn.from_slot_id = from_slot.id LEFT JOIN slot AS to_slot ON txn.to_slot_id = to_slot.id LEFT JOIN txn AS ref ON txn.ref_txn_id = ref.id ORDER BY txn.created_at DESC",
     )
     .fetch_all(pool)
     .await?;
@@ -460,13 +462,13 @@ pub async fn list_txns_export(pool: &SqlitePool) -> Result<Vec<TxnExportRow>, Ap
         .into_iter()
         .map(|row| TxnExportRow {
             txn_type: row.get("txn_type"),
-            item_code: row.get("item_code"),
+            item_name: row.get("item_name"),
             from_slot_code: row.get("from_slot_code"),
             to_slot_code: row.get("to_slot_code"),
             qty: row.get("qty"),
             actual_qty: row.get("actual_qty"),
             occurred_at: row.get("occurred_at"),
-            operator_username: row.get("operator_username"),
+            operator_display_name: row.get("operator_display_name"),
             note: row.get("note"),
             ref_txn_no: row.get("ref_txn_no"),
         })

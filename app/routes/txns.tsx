@@ -1,147 +1,130 @@
-import { useEffect, useMemo, useState } from "react"
-import { set, useForm } from "react-hook-form"
-import { useSearchParams } from "react-router"
-import { PageHeader } from "~/components/common/page-header"
-import { Badge } from "~/components/ui/badge"
-import { Button } from "~/components/ui/button"
-import { DatePicker } from "~/components/ui/date"
-import { Input } from "~/components/ui/input"
-import { Label } from "~/components/ui/label"
-import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "~/components/ui/select"
-import { Combobox } from "~/components/common/combobox"
-import { WarehousePicker } from "~/components/common/pickers/warehouse-picker"
-import { RackPicker } from "~/components/common/pickers/rack-picker"
-import { ItemPicker } from "~/components/common/pickers/item-picker"
-import { OperatorPicker } from "~/components/common/pickers/operator-picker"
-import { SlotPicker } from "~/components/common/pickers/slot-picker"
-import {
-  Pagination,
-  PaginationContent,
-  PaginationItem,
-  PaginationNext,
-  PaginationPrevious,
-} from "~/components/ui/pagination"
-import {
-  Table,
-  TableBody,
-  TableCell,
-  TableHead,
-  TableHeader,
-  TableRow,
-} from "~/components/ui/table"
-import {
-  Dialog,
-  DialogContent,
-  DialogDescription,
-  DialogHeader,
-  DialogTitle,
-} from "~/components/ui/dialog"
-import { getSession } from "~/lib/auth"
-import { tauriInvoke } from "~/lib/tauri"
-import { toast } from "sonner"
-import { open } from "@tauri-apps/plugin-dialog"
-import {
-  ReversalDialog,
-  type ReversalFormValues,
-} from "~/components/stock/stock-action-dialogs"
+import { useEffect, useMemo, useState } from "react";
+import { set, useForm } from "react-hook-form";
+import { useSearchParams } from "react-router";
+import { PageHeader } from "~/components/common/page-header";
+import { AlertDialog, AlertDialogAction, AlertDialogCancel, AlertDialogContent, AlertDialogDescription, AlertDialogFooter, AlertDialogHeader, AlertDialogTitle } from "~/components/ui/alert-dialog";
+import { Badge } from "~/components/ui/badge";
+import { Button } from "~/components/ui/button";
+import { DatePicker } from "~/components/ui/date";
+import { Input } from "~/components/ui/input";
+import { Label } from "~/components/ui/label";
+import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "~/components/ui/select";
+import { Combobox } from "~/components/common/combobox";
+import { WarehousePicker } from "~/components/common/pickers/warehouse-picker";
+import { RackPicker } from "~/components/common/pickers/rack-picker";
+import { ItemPicker } from "~/components/common/pickers/item-picker";
+import { OperatorPicker } from "~/components/common/pickers/operator-picker";
+import { SlotPicker } from "~/components/common/pickers/slot-picker";
+import { Pagination, PaginationContent, PaginationItem, PaginationNext, PaginationPrevious } from "~/components/ui/pagination";
+import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "~/components/ui/table";
+import { Dialog, DialogContent, DialogDescription, DialogHeader, DialogTitle } from "~/components/ui/dialog";
+import { getSession } from "~/lib/auth";
+import { tauriInvoke } from "~/lib/tauri";
+import { toast } from "sonner";
+import { open } from "@tauri-apps/plugin-dialog";
+import { CommonDialog } from "~/components/common/common-dialogs";
+import ReversalForm from "~/components/stock/forms/reversal-form";
+import { type ReversalFormValues } from "~/components/stock/types";
 
 type TxnRow = {
-  id: string
-  txn_no: string
-  txn_type: string
-  occurred_at: number
-  created_at: number
-  operator_id?: string | null
-  operator_name: string
-  item_id?: string | null
-  item_code: string
-  item_name: string
-  from_slot_id?: string | null
-  from_slot_code?: string | null
-  to_slot_id?: string | null
-  to_slot_code?: string | null
-  qty: number
-  actual_qty?: number | null
-  ref_txn_id?: string | null
-  has_reversal?: boolean
-  ref_txn_no?: string | null
-  ref_txn_type?: string | null
-  ref_item_name?: string | null
-  ref_operator_name?: string | null
-  ref_from_slot_code?: string | null
-  ref_to_slot_code?: string | null
-  ref_qty?: number | null
-  ref_actual_qty?: number | null
-  ref_occurred_at?: number | null
-  ref_note?: string | null
-  note?: string | null
-}
+  id: string;
+  txn_no: string;
+  txn_type: string;
+  occurred_at: number;
+  created_at: number;
+  operator_id?: string | null;
+  operator_name: string;
+  item_id?: string | null;
+  item_code: string;
+  item_name: string;
+  from_slot_id?: string | null;
+  from_slot_code?: string | null;
+  to_slot_id?: string | null;
+  to_slot_code?: string | null;
+  qty: number;
+  actual_qty?: number | null;
+  ref_txn_id?: string | null;
+  has_reversal?: boolean;
+  ref_txn_no?: string | null;
+  ref_txn_type?: string | null;
+  ref_item_name?: string | null;
+  ref_operator_name?: string | null;
+  ref_from_slot_code?: string | null;
+  ref_to_slot_code?: string | null;
+  ref_qty?: number | null;
+  ref_actual_qty?: number | null;
+  ref_occurred_at?: number | null;
+  ref_note?: string | null;
+  note?: string | null;
+};
 
 type TxnPhotoRow = {
-  id: string
-  data_id: string
-  photo_type: string
-  file_path: string
-  created_at: number
-}
+  id: string;
+  data_id: string;
+  photo_type: string;
+  file_path: string;
+  created_at: number;
+};
 
 type TxnPhotoListResult = {
-  items: TxnPhotoRow[]
-}
+  items: TxnPhotoRow[];
+};
 
 type SettingsDto = {
-  storage_root: string
-}
+  storage_root: string;
+};
 
 type OperatorRow = {
-  id: string
-  username: string
-  display_name: string
-  status: string
-  role: string
-  created_at: number
-}
+  id: string;
+  username: string;
+  display_name: string;
+  status: string;
+  role: string;
+  created_at: number;
+};
 
 type OperatorListResult = {
-  items: OperatorRow[]
-  total: number
-}
+  items: OperatorRow[];
+  total: number;
+};
 
 type TxnListResult = {
-  items: TxnRow[]
-  total: number
-}
+  items: TxnRow[];
+  total: number;
+};
 
 export default function TxnsPage() {
-  const [searchParams] = useSearchParams()
-  const [rows, setRows] = useState<TxnRow[]>([])
-  const [loading, setLoading] = useState(false)
-  const [keyword, setKeyword] = useState("")
-  const [typeFilter, setTypeFilter] = useState("")
-  const [rackFilter, setRackFilter] = useState(searchParams.get("rack_id") || "")
-  const [slotFilter, setSlotFilter] = useState(searchParams.get("slot_id") || "")
-  const [itemFilter, setItemFilter] = useState(searchParams.get("item_id") || "")
-  const [operatorIdFilter, setOperatorIdFilter] = useState(searchParams.get("operator_id") || "")
-  const [warehouseIdFilter, setWarehouseIdFilter] = useState(searchParams.get("warehouse_id") || "")
+  const [searchParams] = useSearchParams();
+  const [rows, setRows] = useState<TxnRow[]>([]);
+  const [loading, setLoading] = useState(false);
+  const [keyword, setKeyword] = useState("");
+  const [typeFilter, setTypeFilter] = useState("");
+  const [rackFilter, setRackFilter] = useState(searchParams.get("rack_id") || "");
+  const [slotFilter, setSlotFilter] = useState(searchParams.get("slot_id") || "");
+  const [itemFilter, setItemFilter] = useState(searchParams.get("item_id") || "");
+  const [operatorIdFilter, setOperatorIdFilter] = useState(searchParams.get("operator_id") || "");
+  const [warehouseIdFilter, setWarehouseIdFilter] = useState(searchParams.get("warehouse_id") || "");
 
-  const formatDate = (d: Date) => d.toISOString().slice(0, 10)
-  const today = new Date()
-  const defaultEndDate = formatDate(today)
-  const defaultStartDate = formatDate(new Date(today.getTime() - 6 * 24 * 60 * 60 * 1000))
-  const [startDate, setStartDate] = useState<string>(defaultStartDate)
-  const [endDate, setEndDate] = useState<string>(defaultEndDate)
-  const [pageIndex, setPageIndex] = useState(1)
-  const [pageSize] = useState(20)
-  const [total, setTotal] = useState(0)
-  const [detailOpen, setDetailOpen] = useState(false)
-  const [activeRow, setActiveRow] = useState<TxnRow | null>(null)
-  const [selectedTxnId, setSelectedTxnId] = useState("")
-  const [reversalOpen, setReversalOpen] = useState(false)
-  const [txnPhotoRows, setTxnPhotoRows] = useState<TxnPhotoRow[]>([])
-  const [txnPhotoLoading, setTxnPhotoLoading] = useState(false)
-  const [txnPhotoUrls, setTxnPhotoUrls] = useState<Record<string, string>>({})
-  const [storageRoot, setStorageRoot] = useState("")
-  const actorOperatorId = (getSession() as any)?.actor_operator_id || ""
+  const formatDate = (d: Date) => d.toISOString().slice(0, 10);
+  const today = new Date();
+  const defaultEndDate = formatDate(today);
+  const defaultStartDate = formatDate(new Date(today.getTime() - 6 * 24 * 60 * 60 * 1000));
+  const [startDate, setStartDate] = useState<string>(defaultStartDate);
+  const [endDate, setEndDate] = useState<string>(defaultEndDate);
+  const [pageIndex, setPageIndex] = useState(1);
+  const [pageSize] = useState(20);
+  const [total, setTotal] = useState(0);
+  const [detailOpen, setDetailOpen] = useState(false);
+  const [activeRow, setActiveRow] = useState<TxnRow | null>(null);
+  const [selectedTxnId, setSelectedTxnId] = useState("");
+  const [reversalOpen, setReversalOpen] = useState(false);
+  const [exportDialogOpen, setExportDialogOpen] = useState(false);
+  const [exportFilePath, setExportFilePath] = useState("");
+  const [txnPhotoRows, setTxnPhotoRows] = useState<TxnPhotoRow[]>([]);
+  const [txnPhotoLoading, setTxnPhotoLoading] = useState(false);
+  const [txnPhotoUrls, setTxnPhotoUrls] = useState<Record<string, string>>({});
+  const [storageRoot, setStorageRoot] = useState("");
+  const actorOperatorId = (getSession() as any)?.actor_operator_id || "";
   const reversalForm = useForm<ReversalFormValues>({
     defaultValues: {
       txn_no: "",
@@ -149,37 +132,55 @@ export default function TxnsPage() {
       operator_id: actorOperatorId,
       note: "",
     },
-  })
+  });
+
+  const handleExportTxns = async () => {
+    try {
+      const result = await tauriInvoke<{ file_path: string }>("export_txns", {
+        input: {},
+      });
+      setExportFilePath(result.file_path);
+      setExportDialogOpen(true);
+    } catch (err) {
+      const message = err instanceof Error ? err.message : "导出失败";
+      toast.error(message);
+    }
+  };
+
+  const openFolder = async (path: string) => {
+    try {
+      await tauriInvoke("open_folder", { path });
+      console.log("Folder opened:", path);
+    } catch (error) {
+      console.error("Failed to open folder:", error);
+    }
+  };
 
   const fetchTxns = async (
     page = pageIndex,
     overrides?: {
-      keyword?: string
-      typeFilter?: string
-      itemFilter?: string
-      slotFilter?: string
-      warehouseIdFilter?: string
-      rackFilter?: string
-      operatorFilter?: string
-      startDate?: string
-      endDate?: string
-    }
+      keyword?: string;
+      typeFilter?: string;
+      itemFilter?: string;
+      slotFilter?: string;
+      warehouseIdFilter?: string;
+      rackFilter?: string;
+      operatorFilter?: string;
+      startDate?: string;
+      endDate?: string;
+    },
   ) => {
-    const nextKeyword = (overrides?.keyword ?? keyword).trim()
-    const nextType = overrides?.typeFilter ?? typeFilter
-    const nextItem = overrides?.itemFilter ?? itemFilter
-    const nextSlot = overrides?.slotFilter ?? slotFilter
-    const nextRack = overrides?.rackFilter ?? rackFilter
-    const nextOperator = overrides?.operatorFilter ?? operatorIdFilter
-    const nextStartDate = overrides?.startDate ?? startDate
-    const nextEndDate = overrides?.endDate ?? endDate
-    const startAt = nextStartDate
-      ? Math.floor(new Date(`${nextStartDate}T00:00:00`).getTime() / 1000)
-      : undefined
-    const endAt = nextEndDate
-      ? Math.floor(new Date(`${nextEndDate}T23:59:59`).getTime() / 1000)
-      : undefined
-    setLoading(true)
+    const nextKeyword = (overrides?.keyword ?? keyword).trim();
+    const nextType = overrides?.typeFilter ?? typeFilter;
+    const nextItem = overrides?.itemFilter ?? itemFilter;
+    const nextSlot = overrides?.slotFilter ?? slotFilter;
+    const nextRack = overrides?.rackFilter ?? rackFilter;
+    const nextOperator = overrides?.operatorFilter ?? operatorIdFilter;
+    const nextStartDate = overrides?.startDate ?? startDate;
+    const nextEndDate = overrides?.endDate ?? endDate;
+    const startAt = nextStartDate ? Math.floor(new Date(`${nextStartDate}T00:00:00`).getTime() / 1000) : undefined;
+    const endAt = nextEndDate ? Math.floor(new Date(`${nextEndDate}T23:59:59`).getTime() / 1000) : undefined;
+    setLoading(true);
     try {
       const result = await tauriInvoke<TxnListResult>("list_txns", {
         input: {
@@ -195,135 +196,132 @@ export default function TxnsPage() {
           page_index: page,
           page_size: pageSize,
         },
-      })
-      setRows(result.items)
-      setTotal(result.total)
+      });
+      setRows(result.items);
+      setTotal(result.total);
     } catch (err) {
-      const message = err instanceof Error ? err.message : "加载失败"
-      toast.error(message)
+      const message = err instanceof Error ? err.message : "加载失败";
+      toast.error(message);
     } finally {
-      setLoading(false)
+      setLoading(false);
     }
-  }
+  };
 
   useEffect(() => {
-    fetchTxns(pageIndex)
-  }, [pageIndex])
+    fetchTxns(pageIndex);
+  }, [pageIndex]);
 
   const openDetail = (row: TxnRow) => {
-    setActiveRow(row)
-    setDetailOpen(true)
-  }
+    setActiveRow(row);
+    setDetailOpen(true);
+  };
 
-  const selectedRow = useMemo(
-    () => rows.find((row) => row.id === selectedTxnId) || null,
-    [rows, selectedTxnId]
-  )
+  const selectedRow = useMemo(() => rows.find((row) => row.id === selectedTxnId) || null, [rows, selectedTxnId]);
 
   const buildPhotoPath = (filePath: string) => {
-    if (!storageRoot) return ""
-    const root = storageRoot.replace(/\\+/g, "/")
-    return `${root}/${filePath}`.replace(/\/{2,}/g, "/")
-  }
+    if (!storageRoot) return "";
+    const root = storageRoot.replace(/\\+/g, "/");
+    return `${root}/${filePath}`.replace(/\/{2,}/g, "/");
+  };
 
   const fetchPhotoUrl = async (path: string) => {
     const bytes = await tauriInvoke<number[]>("read_photo_bytes", {
       input: { path, actor_operator_id: actorOperatorId },
-    })
-    const blob = new Blob([new Uint8Array(bytes)])
-    return URL.createObjectURL(blob)
-  }
+    });
+    const blob = new Blob([new Uint8Array(bytes)]);
+    return URL.createObjectURL(blob);
+  };
 
   const usePhotoPicker = () => {
-    const [selectedPaths, setSelectedPaths] = useState<string[]>([])
-    const [previewUrls, setPreviewUrls] = useState<Record<string, string>>({})
+    const [selectedPaths, setSelectedPaths] = useState<string[]>([]);
+    const [previewUrls, setPreviewUrls] = useState<Record<string, string>>({});
 
     const reset = () => {
-      setSelectedPaths([])
+      setSelectedPaths([]);
       setPreviewUrls((prev) => {
-        Object.values(prev).forEach((url) => URL.revokeObjectURL(url))
-        return {}
-      })
-    }
+        Object.values(prev).forEach((url) => URL.revokeObjectURL(url));
+        return {};
+      });
+    };
 
     const handlePick = async () => {
       const selected = await open({
         multiple: true,
         filters: [{ name: "Images", extensions: ["png", "jpg", "jpeg", "webp", "bmp"] }],
-      })
-      if (!selected) return
-      const filePaths = Array.isArray(selected) ? selected : [selected]
+      });
+      if (!selected) return;
+      const filePaths = Array.isArray(selected) ? selected : [selected];
       setSelectedPaths((prev) => {
-        const merged = new Set([...prev, ...filePaths])
-        return Array.from(merged)
-      })
-    }
+        const merged = new Set([...prev, ...filePaths]);
+        return Array.from(merged);
+      });
+    };
 
     const handleRemove = (path: string) => {
-      setSelectedPaths((prev) => prev.filter((item) => item !== path))
-    }
+      setSelectedPaths((prev) => prev.filter((item) => item !== path));
+    };
 
     useEffect(() => {
-      let active = true
+      let active = true;
       const load = async () => {
         if (selectedPaths.length === 0) {
           setPreviewUrls((prev) => {
-            Object.values(prev).forEach((url) => URL.revokeObjectURL(url))
-            return {}
-          })
-          return
+            Object.values(prev).forEach((url) => URL.revokeObjectURL(url));
+            return {};
+          });
+          return;
         }
         try {
           const entries = await Promise.all(
             selectedPaths.map(async (path) => {
-              const url = await fetchPhotoUrl(path)
-              return [path, url] as const
+              const url = await fetchPhotoUrl(path);
+              return [path, url] as const;
             }),
-          )
+          );
           if (!active) {
-            entries.forEach(([, url]) => URL.revokeObjectURL(url))
-            return
+            entries.forEach(([, url]) => URL.revokeObjectURL(url));
+            return;
           }
           setPreviewUrls((prev) => {
             Object.entries(prev).forEach(([path, url]) => {
               if (!selectedPaths.includes(path)) {
-                URL.revokeObjectURL(url)
+                URL.revokeObjectURL(url);
               }
-            })
-            return Object.fromEntries(entries)
-          })
+            });
+            return Object.fromEntries(entries);
+          });
         } catch {
-          toast.error("图片预览失败")
+          toast.error("图片预览失败");
         }
-      }
-      load()
+      };
+      load();
       return () => {
-        active = false
-      }
-    }, [selectedPaths])
+        active = false;
+      };
+    }, [selectedPaths]);
 
-    return { selectedPaths, previewUrls, handlePick, handleRemove, reset }
-  }
+    return { selectedPaths, previewUrls, handlePick, handleRemove, reset };
+  };
 
-  const reversalPhotos = usePhotoPicker()
+  const reversalPhotos = usePhotoPicker();
 
   useEffect(() => {
     tauriInvoke<SettingsDto>("get_settings")
       .then((settings) => {
-        setStorageRoot(settings.storage_root || "")
+        setStorageRoot(settings.storage_root || "");
       })
       .catch(() => {
-        setStorageRoot("")
-      })
-  }, [])
+        setStorageRoot("");
+      });
+  }, []);
 
   useEffect(() => {
-    let active = true
+    let active = true;
     if (!detailOpen || !activeRow?.txn_no) {
-      setTxnPhotoRows([])
-      return
+      setTxnPhotoRows([]);
+      return;
     }
-    setTxnPhotoLoading(true)
+    setTxnPhotoLoading(true);
     tauriInvoke<TxnPhotoListResult>("list_photos", {
       query: {
         photo_type: "txn",
@@ -332,85 +330,85 @@ export default function TxnsPage() {
     })
       .then((result) => {
         if (active) {
-          setTxnPhotoRows(result.items)
+          setTxnPhotoRows(result.items);
         }
       })
       .catch(() => {
         if (active) {
-          setTxnPhotoRows([])
+          setTxnPhotoRows([]);
         }
       })
       .finally(() => {
         if (active) {
-          setTxnPhotoLoading(false)
+          setTxnPhotoLoading(false);
         }
-      })
+      });
     return () => {
-      active = false
-    }
-  }, [detailOpen, activeRow?.txn_no])
+      active = false;
+    };
+  }, [detailOpen, activeRow?.txn_no]);
 
   useEffect(() => {
-    let active = true
-    const paths = txnPhotoRows
-      .map((photo) => buildPhotoPath(photo.file_path))
-      .filter(Boolean)
+    let active = true;
+    const paths = txnPhotoRows.map((photo) => buildPhotoPath(photo.file_path)).filter(Boolean);
     const load = async () => {
       if (paths.length === 0) {
         setTxnPhotoUrls((prev) => {
-          Object.values(prev).forEach((url) => URL.revokeObjectURL(url))
-          return {}
-        })
-        return
+          Object.values(prev).forEach((url) => URL.revokeObjectURL(url));
+          return {};
+        });
+        return;
       }
       try {
         const entries = await Promise.all(
           paths.map(async (path) => {
-            const url = await fetchPhotoUrl(path)
-            return [path, url] as const
+            const url = await fetchPhotoUrl(path);
+            return [path, url] as const;
           }),
-        )
+        );
         if (!active) {
-          entries.forEach(([, url]) => URL.revokeObjectURL(url))
-          return
+          entries.forEach(([, url]) => URL.revokeObjectURL(url));
+          return;
         }
         setTxnPhotoUrls((prev) => {
           Object.entries(prev).forEach(([path, url]) => {
             if (!paths.includes(path)) {
-              URL.revokeObjectURL(url)
+              URL.revokeObjectURL(url);
             }
-          })
-          return Object.fromEntries(entries)
-        })
+          });
+          return Object.fromEntries(entries);
+        });
       } catch {
-        toast.error("流水图片加载失败")
+        toast.error("流水图片加载失败");
       }
-    }
-    load()
+    };
+    load();
     return () => {
-      active = false
-    }
-  }, [txnPhotoRows, storageRoot])
+      active = false;
+    };
+  }, [txnPhotoRows, storageRoot]);
 
   const txnTypeLabel = (txnType: string) => {
     switch (txnType) {
       case "IN":
-        return "入库"
+        return "入库";
       case "OUT":
-        return "出库"
+        return "出库";
       case "MOVE":
-        return "移库"
+        return "移库";
       case "COUNT":
-        return "盘点"
+        return "盘点";
       case "REVERSAL":
-        return "冲正"
+        return "冲正";
       default:
-        return txnType
+        return txnType;
     }
-  }
+  };
 
   return (
     <div className="space-y-6">
+      <CommonDialog title="盘点" description="盘点物品" open={reversalOpen} onOpenChange={setReversalOpen} content={<ReversalForm form={reversalForm} onClose={() => setReversalOpen(false)} />} />
+
       <PageHeader
         title="流水查询"
         description="支持按条件筛选流水，查看详情与冲正链路。"
@@ -418,28 +416,28 @@ export default function TxnsPage() {
           <div className="flex flex-wrap gap-2">
             <Button
               variant="outline"
-              disabled={
-                !selectedRow || selectedRow.txn_type === "REVERSAL" || !!selectedRow.ref_txn_id || !!selectedRow.has_reversal
-              }
+              disabled={!selectedRow || selectedRow.txn_type === "REVERSAL" || !!selectedRow.ref_txn_id || !!selectedRow.has_reversal}
               onClick={() => {
                 if (!selectedRow) {
-                  toast.error("请选择流水记录")
-                  return
+                  toast.error("请选择流水记录");
+                  return;
                 }
                 if (selectedRow.txn_type === "REVERSAL" || selectedRow.ref_txn_id || selectedRow.has_reversal) {
-                  toast.error("该流水不可冲正")
-                  return
+                  toast.error("该流水不可冲正");
+                  return;
                 }
-                reversalForm.setValue("txn_no", selectedRow.txn_no)
+                reversalForm.setValue("txn_no", selectedRow.txn_no);
                 if (!reversalForm.getValues("operator_id")) {
-                  reversalForm.setValue("operator_id", actorOperatorId)
+                  reversalForm.setValue("operator_id", actorOperatorId);
                 }
-                setReversalOpen(true)
+                setReversalOpen(true);
               }}
             >
               冲正
             </Button>
-            <Button variant="outline">导出流水</Button>
+            <Button variant="outline" onClick={handleExportTxns}>
+              导出流水
+            </Button>
           </div>
         }
       />
@@ -447,11 +445,7 @@ export default function TxnsPage() {
       <div className="flex flex-wrap items-end gap-3 rounded-2xl border border-slate-200/70 bg-slate-50/70 p-4">
         <div className="min-w-[140px] w-[140px] max-w-[140px] flex-1 space-y-2">
           <Label>搜索</Label>
-          <Input
-            placeholder="流水号/物品/记录人"
-            value={keyword}
-            onChange={(event) => setKeyword(event.target.value)}
-          />
+          <Input placeholder="流水号/物品/记录人" value={keyword} onChange={(event) => setKeyword(event.target.value)} />
         </div>
         <div className="min-w-[140px] max-w-[140px] space-y-2">
           <Label>开始时间</Label>
@@ -466,23 +460,18 @@ export default function TxnsPage() {
           <WarehousePicker
             value={warehouseIdFilter}
             onChange={(nextId) => {
-              setWarehouseIdFilter(nextId)
+              setWarehouseIdFilter(nextId);
             }}
             placeholder="全部"
           />
         </div>
         <div className="min-w-[180px] max-w-[180px] space-y-2">
           <Label>货架</Label>
-            <RackPicker
-              warehouseId={warehouseIdFilter}
-              value={rackFilter}
-              onChange={setRackFilter}
-              placeholder="全部"
-            />
+          <RackPicker warehouseId={warehouseIdFilter} value={rackFilter} onChange={setRackFilter} placeholder="全部" />
         </div>
         <div className="min-w-[180px] max-w-[180px] space-y-2">
           <Label>库位</Label>
-          <SlotPicker value={slotFilter} warehouseId={warehouseIdFilter}  rackId={rackFilter} onChange={(v) => setSlotFilter(v || "")} placeholder="全部" />
+          <SlotPicker value={slotFilter} warehouseId={warehouseIdFilter} rackId={rackFilter} onChange={(v) => setSlotFilter(v || "")} placeholder="全部" />
         </div>
         <div className="min-w-[180px] max-w-[180px] space-y-2">
           <Label>物品</Label>
@@ -511,26 +500,26 @@ export default function TxnsPage() {
         <Button
           variant="outline"
           onClick={() => {
-            setPageIndex(1)
-            fetchTxns(1)
+            setPageIndex(1);
+            fetchTxns(1);
           }}
         >
           筛选
         </Button>
         <Button
           variant="secondary"
-            onClick={() => {
-            setKeyword("")
-            setTypeFilter("")
-            setStartDate(defaultStartDate)
-            setEndDate(defaultEndDate)
-            setWarehouseIdFilter("")
-            setRackFilter("")
-            setSlotFilter("")
-            setItemFilter("")
-            setOperatorIdFilter("")
-            setPageIndex(1)
-            void fetchTxns(1, { startDate: defaultStartDate, endDate: defaultEndDate })
+          onClick={() => {
+            setKeyword("");
+            setTypeFilter("");
+            setStartDate(defaultStartDate);
+            setEndDate(defaultEndDate);
+            setWarehouseIdFilter("");
+            setRackFilter("");
+            setSlotFilter("");
+            setItemFilter("");
+            setOperatorIdFilter("");
+            setPageIndex(1);
+            void fetchTxns(1, { startDate: defaultStartDate, endDate: defaultEndDate });
           }}
         >
           重置
@@ -554,8 +543,8 @@ export default function TxnsPage() {
             </TableRow>
           </TableHeader>
           <TableBody>
-              {rows.map((row) => (
-                <TableRow key={row.id}>
+            {rows.map((row) => (
+              <TableRow key={row.id}>
                 <TableCell className="text-center">
                   <input
                     type="checkbox"
@@ -563,11 +552,11 @@ export default function TxnsPage() {
                     checked={selectedTxnId === row.id}
                     onChange={(event) => {
                       if (event.target.checked) {
-                        setSelectedTxnId(row.id)
-                        reversalForm.setValue("txn_no", row.txn_no)
+                        setSelectedTxnId(row.id);
+                        reversalForm.setValue("txn_no", row.txn_no);
                       } else if (selectedTxnId === row.id) {
-                        setSelectedTxnId("")
-                        reversalForm.setValue("txn_no", "")
+                        setSelectedTxnId("");
+                        reversalForm.setValue("txn_no", "");
                       }
                     }}
                   />
@@ -580,11 +569,7 @@ export default function TxnsPage() {
                 <TableCell>{row.operator_name}</TableCell>
                 <TableCell>{new Date(row.occurred_at * 1000).toLocaleString()}</TableCell>
                 <TableCell>
-                  <Badge variant="secondary">
-                    {row.has_reversal
-                      ? "已冲正"
-                      : "成功"}
-                  </Badge>
+                  <Badge variant="secondary">{row.has_reversal ? "已冲正" : "成功"}</Badge>
                 </TableCell>
                 <TableCell className="text-center">
                   <Button variant="ghost" size="sm" onClick={() => openDetail(row)}>
@@ -596,15 +581,15 @@ export default function TxnsPage() {
                     disabled={row.txn_type === "REVERSAL" || !!row.ref_txn_id || !!row.has_reversal}
                     onClick={() => {
                       if (row.txn_type === "REVERSAL" || row.ref_txn_id || row.has_reversal) {
-                        toast.error("该流水不可冲正")
-                        return
+                        toast.error("该流水不可冲正");
+                        return;
                       }
-                      setSelectedTxnId(row.id)
-                      reversalForm.setValue("txn_no", row.txn_no)
+                      setSelectedTxnId(row.id);
+                      reversalForm.setValue("txn_no", row.txn_no);
                       if (!reversalForm.getValues("operator_id")) {
-                        reversalForm.setValue("operator_id", actorOperatorId)
+                        reversalForm.setValue("operator_id", actorOperatorId);
                       }
-                      setReversalOpen(true)
+                      setReversalOpen(true);
                     }}
                   >
                     冲正
@@ -633,8 +618,8 @@ export default function TxnsPage() {
               <PaginationPrevious
                 href="#"
                 onClick={(event) => {
-                  event.preventDefault()
-                  setPageIndex((prev) => Math.max(1, prev - 1))
+                  event.preventDefault();
+                  setPageIndex((prev) => Math.max(1, prev - 1));
                 }}
               />
             </PaginationItem>
@@ -642,9 +627,9 @@ export default function TxnsPage() {
               <PaginationNext
                 href="#"
                 onClick={(event) => {
-                  event.preventDefault()
-                  const totalPages = Math.max(1, Math.ceil(total / pageSize))
-                  setPageIndex((prev) => Math.min(totalPages, prev + 1))
+                  event.preventDefault();
+                  const totalPages = Math.max(1, Math.ceil(total / pageSize));
+                  setPageIndex((prev) => Math.min(totalPages, prev + 1));
                 }}
               />
             </PaginationItem>
@@ -663,9 +648,7 @@ export default function TxnsPage() {
               <div className="flex flex-wrap gap-6">
                 <span>类型：{txnTypeLabel(activeRow.txn_type)}</span>
                 <span>数量：{activeRow.qty}</span>
-                <span>
-                  时间：{new Date(activeRow.occurred_at * 1000).toLocaleString()}
-                </span>
+                <span>时间：{new Date(activeRow.occurred_at * 1000).toLocaleString()}</span>
               </div>
               <div className="flex flex-wrap gap-6">
                 <span>物品：{activeRow.item_name}</span>
@@ -702,18 +685,14 @@ export default function TxnsPage() {
                     <div className="flex flex-wrap gap-6">
                       <span>
                         时间：
-                        {activeRow.ref_occurred_at
-                          ? new Date(activeRow.ref_occurred_at * 1000).toLocaleString()
-                          : "-"}
+                        {activeRow.ref_occurred_at ? new Date(activeRow.ref_occurred_at * 1000).toLocaleString() : "-"}
                       </span>
                     </div>
                     <div>备注：{activeRow.ref_note || "-"}</div>
                   </div>
                 </div>
               ) : null}
-              <div className="rounded-xl border border-slate-200 bg-slate-50 p-3 text-xs text-slate-500">
-                备注：{activeRow.note || "-"}
-              </div>
+              <div className="rounded-xl border border-slate-200 bg-slate-50 p-3 text-xs text-slate-500">备注：{activeRow.note || "-"}</div>
               <div className="grid gap-2">
                 <span className="text-sm font-medium text-slate-600">流水图片</span>
                 {txnPhotoLoading ? (
@@ -721,19 +700,12 @@ export default function TxnsPage() {
                 ) : txnPhotoRows.length > 0 ? (
                   <div className="grid gap-2 sm:grid-cols-3">
                     {txnPhotoRows.map((photo) => {
-                      const path = buildPhotoPath(photo.file_path)
+                      const path = buildPhotoPath(photo.file_path);
                       return (
-                        <div
-                          key={photo.id}
-                          className="aspect-[4/3] overflow-hidden rounded-lg border border-slate-200 bg-white"
-                        >
-                          <img
-                            src={path ? txnPhotoUrls[path] || "" : ""}
-                            alt={photo.file_path}
-                            className="h-full w-full object-cover"
-                          />
+                        <div key={photo.id} className="aspect-[4/3] overflow-hidden rounded-lg border border-slate-200 bg-white">
+                          <img src={path ? txnPhotoUrls[path] || "" : ""} alt={photo.file_path} className="h-full w-full object-cover" />
                         </div>
-                      )
+                      );
                     })}
                   </div>
                 ) : (
@@ -745,16 +717,36 @@ export default function TxnsPage() {
         </DialogContent>
       </Dialog>
 
-      <ReversalDialog
-        open={reversalOpen}
-        onOpenChange={(open) => {
-          setReversalOpen(open)
-          if (!open) {
-            reversalPhotos.reset()
-          }
+      <AlertDialog
+        open={exportDialogOpen}
+        onOpenChange={(next) => {
+          setExportDialogOpen(next);
         }}
-        form={reversalForm}
-      />
+      >
+        <AlertDialogContent>
+          <AlertDialogHeader>
+            <AlertDialogTitle>导出完成</AlertDialogTitle>
+            <AlertDialogDescription className="whitespace-pre-line">{exportFilePath}</AlertDialogDescription>
+          </AlertDialogHeader>
+          <AlertDialogFooter>
+            <AlertDialogCancel onClick={() => setExportDialogOpen(false)}>关闭</AlertDialogCancel>
+            <AlertDialogAction
+              onClick={async () => {
+                try {
+                  const path = exportFilePath || "";
+                  const dir = path.lastIndexOf("/") > -1 ? path.substring(0, path.lastIndexOf("/")) : path;
+                  openFolder(dir);
+                } catch (e) {
+                  const msg = e instanceof Error ? e.message : "打开文件夹失败";
+                  toast.error(msg);
+                }
+              }}
+            >
+              打开文件夹
+            </AlertDialogAction>
+          </AlertDialogFooter>
+        </AlertDialogContent>
+      </AlertDialog>
     </div>
-  )
+  );
 }
