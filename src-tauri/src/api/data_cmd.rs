@@ -84,22 +84,7 @@ pub async fn export_items(
   .await
 }
 
-#[tauri::command]
-pub async fn export_txns(
-  state: State<'_, AppState>,
-  actor_operator_id: String,
-) -> Result<import_export_service::ExportResult, AppError> {
-  command_guard::ensure_not_migrating(&state).await?;
-  permission_service::require_role_by_id(&state.pool, &actor_operator_id, &["admin", "keeper", "viewer"]).await?;
-  command_guard::run_with_audit(
-    &state.pool,
-    AuditAction::TxnExport,
-    None,
-    Some(json!({ "actor_operator_id": actor_operator_id.clone() })),
-    || async { import_export_service::export_txns(&state.pool).await },
-  )
-  .await
-}
+
 
 #[tauri::command]
 pub async fn import_items(state: State<'_, AppState>, actor_operator_id: String, input: ImportInput) -> Result<(), AppError> {

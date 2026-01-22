@@ -137,7 +137,17 @@ export default function TxnsPage() {
   const handleExportTxns = async () => {
     try {
       const result = await tauriInvoke<{ file_path: string }>("export_txns", {
-        input: {},
+        input: {
+          txn_type: typeFilter === "" ? undefined : typeFilter,
+          keyword: keyword.trim() || undefined,
+          item_id: itemFilter === "" ? undefined : itemFilter,
+          slot_id: slotFilter === "" ? undefined : slotFilter,
+          warehouse_id: warehouseIdFilter === "" ? undefined : warehouseIdFilter,
+          rack_id: rackFilter === "" ? undefined : rackFilter,
+          operator_id: operatorIdFilter === "" ? undefined : operatorIdFilter,
+          start_at: startDate ? Math.floor(new Date(`${startDate}T00:00:00`).getTime() / 1000) : undefined,
+          end_at: endDate ? Math.floor(new Date(`${endDate}T23:59:59`).getTime() / 1000) : undefined,
+        },
       });
       setExportFilePath(result.file_path);
       setExportDialogOpen(true);

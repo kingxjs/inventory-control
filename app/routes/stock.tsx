@@ -288,6 +288,14 @@ export default function StockPage() {
     try {
       const result = await tauriInvoke<StockExportResult>("export_stock", {
         // pass empty args to trigger wrapper actor id injection
+        input: {
+          keyword: keyword || undefined,
+          warehouse_id: warehouseIdFilter || undefined,
+          rack_id: rackFilter || undefined,
+          slot_id: slotIdFilter || undefined,
+          item_id: itemFilter || undefined,
+          operator_id: operatorFilter || undefined
+        },
       });
       // 用 AlertDialog 提示导出成功，并提供打开文件夹按钮
       setExportFilePath(result.file_path);

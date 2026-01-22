@@ -89,7 +89,7 @@ fn main() {
       data_cmd::backup_db,
       data_cmd::restore_db,
       data_cmd::export_items,
-      data_cmd::export_txns,
+      txn_cmd::export_txns,
       data_cmd::import_items,
       data_cmd::import_txns,
       // 认证相关命令

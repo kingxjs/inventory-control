@@ -83,7 +83,10 @@ export default function SettingsPage() {
   const handleExportTxns = async () => {
       try {
       const result = await tauriInvoke<{ file_path: string }>("export_txns", {
-        input: {  },
+        input: {
+          page_index: 1,
+          page_size: 100000,
+        },
       })
       toast.success(`导出成功：${result.file_path}`)
     } catch (err) {
