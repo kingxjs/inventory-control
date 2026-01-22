@@ -64,16 +64,18 @@ pub async fn export_stock(pool: &SqlitePool) -> Result<StockExportResult, AppErr
   let now = Utc::now().timestamp();
   let file_path = export_dir.join(format!("stock_export_{}.csv", now));
   let mut lines = Vec::new();
-  lines.push("rack_code,slot_code,item_code,item_name,qty".to_string());
+  // 使用显示名称导出：仓库名、货架名、库位、物品名、数量
+  lines.push("仓库名,货架名,库位,物品名,物品编号,数量".to_string());
 
   let items = stock_query_repo::list_stock_by_slot_all(pool).await?;
   for item in items {
     lines.push(format!(
-      "{},{},{},{},{}",
-      escape_csv(&item.rack_code),
+      "{},{},{},{},{},{}",
+      escape_csv(item.warehouse_name.as_deref().unwrap_or("")),
+      escape_csv(&item.rack_name),
       escape_csv(&item.slot_code),
-      escape_csv(&item.item_code),
       escape_csv(&item.item_name),
+      escape_csv(&item.item_code),
       item.qty
     ));
   }

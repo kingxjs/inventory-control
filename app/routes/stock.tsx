@@ -22,7 +22,6 @@ import { OperatorPicker } from "~/components/common/pickers/operator-picker";
 import { getSession } from "~/lib/auth";
 import { tauriInvoke } from "~/lib/tauri";
 import { toast } from "sonner";
-import { open } from "@tauri-apps/plugin-dialog";
 import { CommonDialog } from "~/components/common/common-dialogs";
 import InboundForm from "~/components/stock/forms/inbound-form";
 import OutboundForm from "~/components/stock/forms/outbound-form";
@@ -192,6 +191,8 @@ export default function StockPage() {
   const [inboundConfirmOpen, setInboundConfirmOpen] = useState(false);
   const [inboundConfirmDetail, setInboundConfirmDetail] = useState("");
   const inboundConfirmResolverRef = useRef<((value: boolean) => void) | null>(null);
+  const [exportDialogOpen, setExportDialogOpen] = useState(false);
+  const [exportFilePath, setExportFilePath] = useState("");
 
   const fetchStock = async (slotPage = pageIndexSlot, itemPage = pageIndexItem, overrides: Partial<Record<string, any>> = {}) => {
     setLoading(true);
@@ -288,7 +289,9 @@ export default function StockPage() {
       const result = await tauriInvoke<StockExportResult>("export_stock", {
         // pass empty args to trigger wrapper actor id injection
       });
-      toast.success(`导出成功：${result.file_path}`);
+      // 用 AlertDialog 提示导出成功，并提供打开文件夹按钮
+      setExportFilePath(result.file_path);
+      setExportDialogOpen(true);
     } catch (err) {
       const message = err instanceof Error ? err.message : "导出失败";
       toast.error(message);
@@ -359,7 +362,14 @@ export default function StockPage() {
     if (!selectedStockRow) return;
     await applyStockRow(selectedStockRow, mode);
   };
-
+  const openFolder = async (path: string) => {
+    try {
+      await tauriInvoke("open_folder", { path });
+      console.log("Folder opened:", path);
+    } catch (error) {
+      console.error("Failed to open folder:", error);
+    }
+  };
   return (
     <div className="space-y-6">
       <CommonDialog title="入库" description="物品入库" open={inboundOpen} onOpenChange={setInboundOpen} content={<InboundForm onClose={() => setInboundOpen(false)} />} />
@@ -386,12 +396,49 @@ export default function StockPage() {
           </AlertDialogFooter>
         </AlertDialogContent>
       </AlertDialog>
+      <AlertDialog
+        open={exportDialogOpen}
+        onOpenChange={(next) => {
+          setExportDialogOpen(next);
+          if (!next) {
+            // 清理路径
+            // 不需要返回值
+          }
+        }}
+      >
+        <AlertDialogContent>
+          <AlertDialogHeader>
+            <AlertDialogTitle>导出完成</AlertDialogTitle>
+            <AlertDialogDescription className="whitespace-pre-line">{exportFilePath}</AlertDialogDescription>
+          </AlertDialogHeader>
+          <AlertDialogFooter>
+            <AlertDialogCancel onClick={() => setExportDialogOpen(false)}>关闭</AlertDialogCancel>
+            <AlertDialogAction
+              onClick={async () => {
+                try {
+                  const path = exportFilePath || "";
+                  const dir = path.lastIndexOf("/") > -1 ? path.substring(0, path.lastIndexOf("/")) : path;
+                  openFolder(dir);
+                } catch (e) {
+                  const msg = e instanceof Error ? e.message : "打开文件夹失败";
+                  toast.error(msg);
+                }
+              }}
+            >
+              打开文件夹
+            </AlertDialogAction>
+          </AlertDialogFooter>
+        </AlertDialogContent>
+      </AlertDialog>
       <PageHeader
         title="库存管理"
         description="当前库存与库存作业集中处理。"
         actions={
           <div className="flex flex-wrap gap-2">
             <Button onClick={() => setInboundOpen(true)}>入库</Button>
+            <Button variant="outline" onClick={handleExport}>
+              导出
+            </Button>
           </div>
         }
       />
@@ -404,8 +451,8 @@ export default function StockPage() {
         <div className="min-w-[180px] max-w-[180px] space-y-2">
           <Label>物品</Label>
           <ItemPicker value={itemFilter} onChange={(v) => setItemFilter(v || "")} placeholder="全部" />
-          </div>
-          {/* <div className="space-y-2">
+        </div>
+        {/* <div className="space-y-2">
             <Label>状态</Label>
             <Select value={status} onValueChange={setStatus}>
               <SelectTrigger>
@@ -466,9 +513,6 @@ export default function StockPage() {
           }}
         >
           重置
-        </Button>
-        <Button variant="outline" onClick={handleExport}>
-          导出
         </Button>
       </div>
 
