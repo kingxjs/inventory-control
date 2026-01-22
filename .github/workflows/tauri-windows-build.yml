@@ -4,6 +4,11 @@ on:
     branches: [ main ]
   workflow_dispatch: {}
 
+# 取消之前的重复构建
+concurrency:
+  group: ${{ github.workflow }}-${{ github.ref }}
+  cancel-in-progress: true
+
 jobs:
   build-windows:
     runs-on: windows-latest
@@ -15,11 +20,26 @@ jobs:
         uses: actions/setup-node@v4
         with:
           node-version: '22'
+          cache: 'pnpm'  # 启用 Node.js 缓存
       
       - name: Enable pnpm via corepack
         run: |
           corepack enable
           corepack prepare pnpm@latest --activate
+      
+      # pnpm 依赖缓存
+      - name: Get pnpm store directory
+        shell: bash
+        run: |
+          echo "STORE_PATH=$(pnpm store path --silent)" >> $GITHUB_ENV
+      
+      - name: Setup pnpm cache
+        uses: actions/cache@v4
+        with:
+          path: ${{ env.STORE_PATH }}
+          key: ${{ runner.os }}-pnpm-store-${{ hashFiles('**/pnpm-lock.yaml') }}
+          restore-keys: |
+            ${{ runner.os }}-pnpm-store-
       
       - name: Install dependencies
         run: pnpm install --frozen-lockfile
@@ -29,13 +49,24 @@ jobs:
         with:
           targets: x86_64-pc-windows-msvc
       
+      # Rust 编译缓存
+      - name: Rust cache
+        uses: Swatinem/rust-cache@v2
+        with:
+          workspaces: src-tauri
+          cache-on-failure: true
+      
       - name: Install WiX and NSIS
         run: |
           choco install wixtoolset -y
           choco install nsis -y
       
+      # 使用 --release 优化并行编译
       - name: Build Windows installers
         run: pnpm tauri build --bundles nsis msi
+        env:
+          CARGO_INCREMENTAL: 1  # 启用增量编译
+          CARGO_PROFILE_RELEASE_LTO: false  # 禁用 LTO 加速编译（牺牲一点体积）
       
       - name: Decode signing certificate
         if: env.HAS_SIGNING_CERT == 'true'
@@ -80,6 +111,7 @@ jobs:
           path: |
             src-tauri/target/release/bundle/nsis/*.exe
             src-tauri/target/release/bundle/msi/*.msi
+          compression-level: 0  # 已经是压缩文件，跳过压缩
 
   build-macos:
     runs-on: macos-latest
@@ -91,11 +123,26 @@ jobs:
         uses: actions/setup-node@v4
         with:
           node-version: '22'
+          cache: 'pnpm'  # 启用 Node.js 缓存
       
       - name: Enable pnpm via corepack
         run: |
           corepack enable
           corepack prepare pnpm@latest --activate
+      
+      # pnpm 依赖缓存
+      - name: Get pnpm store directory
+        shell: bash
+        run: |
+          echo "STORE_PATH=$(pnpm store path --silent)" >> $GITHUB_ENV
+      
+      - name: Setup pnpm cache
+        uses: actions/cache@v4
+        with:
+          path: ${{ env.STORE_PATH }}
+          key: ${{ runner.os }}-pnpm-store-${{ hashFiles('**/pnpm-lock.yaml') }}
+          restore-keys: |
+            ${{ runner.os }}-pnpm-store-
       
       - name: Install dependencies
         run: pnpm install --frozen-lockfile
@@ -105,8 +152,18 @@ jobs:
         with:
           targets: aarch64-apple-darwin,x86_64-apple-darwin
       
+      # Rust 编译缓存
+      - name: Rust cache
+        uses: Swatinem/rust-cache@v2
+        with:
+          workspaces: src-tauri
+          cache-on-failure: true
+      
       - name: Build macOS Universal Binary
         run: pnpm tauri build --target universal-apple-darwin
+        env:
+          CARGO_INCREMENTAL: 1  # 启用增量编译
+          CARGO_PROFILE_RELEASE_LTO: false  # 禁用 LTO 加速编译
 
       - name: Show macOS bundle output
         run: ls -R src-tauri/target/universal-apple-darwin/release/bundle || true
@@ -138,6 +195,7 @@ jobs:
           path: |
             src-tauri/target/universal-apple-darwin/release/bundle/dmg/*.dmg
             src-tauri/target/universal-apple-darwin/release/bundle/macos/*.app
+          compression-level: 0  # 已经是压缩文件，跳过压缩
 
   create-release:
     needs: [build-windows, build-macos]
