@@ -20,12 +20,11 @@ jobs:
         uses: actions/setup-node@v4
         with:
           node-version: '22'
-          cache: 'pnpm'  # 启用 Node.js 缓存
       
-      - name: Enable pnpm via corepack
-        run: |
-          corepack enable
-          corepack prepare pnpm@latest --activate
+      - name: Install pnpm
+        uses: pnpm/action-setup@v4
+        with:
+          version: 9
       
       # pnpm 依赖缓存
       - name: Get pnpm store directory
@@ -123,12 +122,11 @@ jobs:
         uses: actions/setup-node@v4
         with:
           node-version: '22'
-          cache: 'pnpm'  # 启用 Node.js 缓存
       
-      - name: Enable pnpm via corepack
-        run: |
-          corepack enable
-          corepack prepare pnpm@latest --activate
+      - name: Install pnpm
+        uses: pnpm/action-setup@v4
+        with:
+          version: 9
       
       # pnpm 依赖缓存
       - name: Get pnpm store directory
