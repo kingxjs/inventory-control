@@ -23,19 +23,22 @@ pub async fn list_racks(
   pool: &SqlitePool,
   page_index: i64,
   page_size: i64,
+  keyword: Option<String>,
+  warehouse_id: Option<String>,
 ) -> Result<RackListResult, AppError> {
   let (page_index, page_size) = normalize_page(page_index, page_size)?;
-  let total = rack_repo::count_racks(pool).await?;
-  let items = rack_repo::list_racks(pool, page_index, page_size).await?;
+  let total = rack_repo::count_racks(pool, keyword.clone(), warehouse_id.clone()).await?;
+  let items = rack_repo::list_racks(pool, page_index, page_size, keyword, warehouse_id).await?;
   Ok(RackListResult { items, total })
 }
 
 pub async fn list_slots(
   pool: &SqlitePool,
-  rack_id: &str,
+  rack_id: Option<String>,
+  warehouse_id: Option<String>,
   level_no: Option<i64>,
 ) -> Result<SlotListResult, AppError> {
-  let items = rack_repo::list_slots(pool, rack_id, level_no).await?;
+  let items = rack_repo::list_slots(pool, rack_id, warehouse_id, level_no).await?;
   Ok(SlotListResult { items })
 }
 
@@ -94,7 +97,7 @@ pub async fn create_rack(
     &id,
     &normalized_code,
     name,
-    Some(normalized_warehouse_id),
+    Some(normalized_warehouse_id.clone()),
     location,
     "active",
     level_count,
@@ -108,6 +111,7 @@ pub async fn create_rack(
     pool,
     &id,
     &normalized_code,
+    Some(&normalized_warehouse_id),
     warehouse_code.as_deref(),
     level_count,
     slots_per_level,
@@ -208,6 +212,7 @@ pub async fn regenerate_slots(
   pool: &SqlitePool,
   rack_id: &str,
   rack_code: &str,
+  warehouse_id: Option<&str>,
   warehouse_code: Option<&str>,
   level_count: i64,
   slots_per_level: i64,
@@ -215,16 +220,27 @@ pub async fn regenerate_slots(
 ) -> Result<(), AppError> {
   // 先删除后创建，确保一致性
   rack_repo::delete_slots_by_rack(pool, rack_id).await?;
-  let mut resolved_warehouse_code = warehouse_code.map(|value| value.to_string());
-  if resolved_warehouse_code.is_none() {
+  // resolve warehouse id and code (we need both: id saved in slot.warehouse_id, code used for slot.code)
+  let mut resolved_warehouse_id = warehouse_id.map(|v| v.to_string());
+  if resolved_warehouse_id.is_none() {
     if let Some(rack) = rack_repo::get_rack_by_id(pool, rack_id).await? {
-      if let Some(warehouse_id) = rack.warehouse_id {
-        if let Some(warehouse) = warehouse_repo::get_warehouse_by_id(pool, &warehouse_id).await? {
-          resolved_warehouse_code = Some(warehouse.code);
-        }
+      if let Some(wid) = rack.warehouse_id {
+        resolved_warehouse_id = Some(wid);
       }
     }
   }
+
+  let resolved_warehouse_id = resolved_warehouse_id.ok_or_else(|| {
+    AppError::new(ErrorCode::ValidationError, "仓库缺失，无法生成库位编码")
+  })?;
+
+  let mut resolved_warehouse_code = warehouse_code.map(|v| v.to_string());
+  if resolved_warehouse_code.is_none() {
+    if let Some(warehouse) = warehouse_repo::get_warehouse_by_id(pool, &resolved_warehouse_id).await? {
+      resolved_warehouse_code = Some(warehouse.code);
+    }
+  }
+
   let resolved_warehouse_code = resolved_warehouse_code.ok_or_else(|| {
     AppError::new(ErrorCode::ValidationError, "仓库缺失，无法生成库位编码")
   })?;
@@ -251,6 +267,7 @@ pub async fn regenerate_slots(
       slots.push(SlotRow {
         id: Uuid::new_v4().to_string(),
         rack_id: rack_id.to_string(),
+        warehouse_id: Some(resolved_warehouse_id.clone()),
         level_no: level,
         slot_no,
         code,

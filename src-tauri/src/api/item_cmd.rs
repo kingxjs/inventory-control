@@ -168,3 +168,35 @@ pub async fn set_item_status(
   )
   .await
 }
+
+#[derive(Debug, Deserialize)]
+pub struct GetItemInput {
+  pub id: Option<String>,
+  pub code: Option<String>,
+}
+
+#[tauri::command]
+pub async fn get_item(
+  state: State<'_, AppState>,
+  actor_operator_id: String,
+  input: GetItemInput,
+) -> Result<Option<crate::repo::item_repo::ItemRow>, AppError> {
+  permission_service::require_role_by_id(&state.pool, &actor_operator_id, &["admin", "keeper", "viewer", "member"]).await?;
+  let audit_request = json!({ "id": input.id.clone(), "code": input.code.clone(), "actor_operator_id": actor_operator_id.clone() });
+  command_guard::run_with_audit(
+    &state.pool,
+    AuditAction::ItemList,
+    None,
+    Some(audit_request),
+    || async {
+      if let Some(id) = input.id {
+        crate::repo::item_repo::get_item_by_id(&state.pool, &id).await
+      } else if let Some(code) = input.code {
+        crate::repo::item_repo::get_item_by_code(&state.pool, &code).await
+      } else {
+        Ok(None)
+      }
+    },
+  )
+  .await
+}

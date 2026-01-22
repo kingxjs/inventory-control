@@ -16,31 +16,62 @@ pub struct OperatorRow {
 
 pub async fn list_operators(
   pool: &SqlitePool,
+  keyword: Option<String>,
   status: Option<String>,
   page_index: i64,
   page_size: i64,
 ) -> Result<Vec<OperatorRow>, AppError> {
   let offset = (page_index - 1) * page_size;
-  // 支持按状态过滤
-  let rows = if let Some(status) = status {
-    sqlx::query(
-      "SELECT id, username, display_name, role, status, must_change_pwd, created_at \
-       FROM operator WHERE status = ? ORDER BY created_at DESC LIMIT ? OFFSET ?",
-    )
-    .bind(status)
-    .bind(page_size)
-    .bind(offset)
-    .fetch_all(pool)
-    .await?
-  } else {
-    sqlx::query(
-      "SELECT id, username, display_name, role, status, must_change_pwd, created_at \
-       FROM operator ORDER BY created_at DESC LIMIT ? OFFSET ?",
-    )
-    .bind(page_size)
-    .bind(offset)
-    .fetch_all(pool)
-    .await?
+  // 支持按状态和关键字过滤（username / display_name）
+  let rows = match (status, keyword) {
+    (Some(status), Some(kw)) => {
+      let like = format!("%{}%", kw);
+      sqlx::query(
+        "SELECT id, username, display_name, role, status, must_change_pwd, created_at \
+         FROM operator WHERE status = ? AND (username LIKE ? OR display_name LIKE ?) ORDER BY created_at DESC LIMIT ? OFFSET ?",
+      )
+      .bind(status)
+      .bind(like.clone())
+      .bind(like)
+      .bind(page_size)
+      .bind(offset)
+      .fetch_all(pool)
+      .await?
+    }
+    (Some(status), None) => {
+      sqlx::query(
+        "SELECT id, username, display_name, role, status, must_change_pwd, created_at \
+         FROM operator WHERE status = ? ORDER BY created_at DESC LIMIT ? OFFSET ?",
+      )
+      .bind(status)
+      .bind(page_size)
+      .bind(offset)
+      .fetch_all(pool)
+      .await?
+    }
+    (None, Some(kw)) => {
+      let like = format!("%{}%", kw);
+      sqlx::query(
+        "SELECT id, username, display_name, role, status, must_change_pwd, created_at \
+         FROM operator WHERE username LIKE ? OR display_name LIKE ? ORDER BY created_at DESC LIMIT ? OFFSET ?",
+      )
+      .bind(like.clone())
+      .bind(like)
+      .bind(page_size)
+      .bind(offset)
+      .fetch_all(pool)
+      .await?
+    }
+    (None, None) => {
+      sqlx::query(
+        "SELECT id, username, display_name, role, status, must_change_pwd, created_at \
+         FROM operator ORDER BY created_at DESC LIMIT ? OFFSET ?",
+      )
+      .bind(page_size)
+      .bind(offset)
+      .fetch_all(pool)
+      .await?
+    }
   };
 
   let items = rows
@@ -61,20 +92,47 @@ pub async fn list_operators(
 
 pub async fn count_operators(
   pool: &SqlitePool,
+  keyword: Option<String>,
   status: Option<String>,
 ) -> Result<i64, AppError> {
-  if let Some(status) = status {
-    let (count,): (i64,) =
-      sqlx::query_as("SELECT COUNT(1) FROM operator WHERE status = ?")
-        .bind(status)
-        .fetch_one(pool)
-        .await?;
-    Ok(count)
-  } else {
-    let (count,): (i64,) = sqlx::query_as("SELECT COUNT(1) FROM operator")
+  match (status, keyword) {
+    (Some(status), Some(kw)) => {
+      let like = format!("%{}%", kw);
+      let (count,): (i64,) = sqlx::query_as(
+        "SELECT COUNT(1) FROM operator WHERE status = ? AND (username LIKE ? OR display_name LIKE ?)",
+      )
+      .bind(status)
+      .bind(like.clone())
+      .bind(like)
       .fetch_one(pool)
       .await?;
-    Ok(count)
+      Ok(count)
+    }
+    (Some(status), None) => {
+      let (count,): (i64,) =
+        sqlx::query_as("SELECT COUNT(1) FROM operator WHERE status = ?")
+          .bind(status)
+          .fetch_one(pool)
+          .await?;
+      Ok(count)
+    }
+    (None, Some(kw)) => {
+      let like = format!("%{}%", kw);
+      let (count,): (i64,) = sqlx::query_as(
+        "SELECT COUNT(1) FROM operator WHERE username LIKE ? OR display_name LIKE ?",
+      )
+      .bind(like.clone())
+      .bind(like)
+      .fetch_one(pool)
+      .await?;
+      Ok(count)
+    }
+    (None, None) => {
+      let (count,): (i64,) = sqlx::query_as("SELECT COUNT(1) FROM operator")
+        .fetch_one(pool)
+        .await?;
+      Ok(count)
+    }
   }
 }
 

@@ -12,6 +12,11 @@ pub struct StockQueryInput {
   // actor_operator_id provided as top-level arg
   pub page_index: i64,
   pub page_size: i64,
+  pub warehouse_id: Option<String>,
+  pub rack_id: Option<String>,
+  pub slot_id: Option<String>,
+  pub item_id: Option<String>,
+  pub operator_id: Option<String>,
 }
 
 #[tauri::command]
@@ -32,7 +37,7 @@ pub async fn list_stock_by_slot(
     None,
     Some(json!({ "actor_operator_id": actor_operator_id.clone() })),
     || async {
-      stock_service::list_stock_by_slot(&state.pool, input.page_index, input.page_size).await
+      stock_service::list_stock_by_slot(&state.pool, input.page_index, input.page_size, input.warehouse_id.clone(), input.rack_id.clone(), input.slot_id.clone(), input.item_id.clone(), input.operator_id.clone()).await
     },
   )
   .await
@@ -56,7 +61,7 @@ pub async fn list_stock_by_item(
     None,
     Some(json!({ "actor_operator_id": actor_operator_id.clone() })),
     || async {
-      stock_service::list_stock_by_item(&state.pool, input.page_index, input.page_size).await
+      stock_service::list_stock_by_item(&state.pool, input.page_index, input.page_size, input.warehouse_id.clone(), input.rack_id.clone(), input.slot_id.clone(), input.item_id.clone(), input.operator_id.clone()).await
     },
   )
   .await

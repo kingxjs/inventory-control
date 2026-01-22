@@ -60,6 +60,7 @@ CREATE INDEX IF NOT EXISTS idx_rack_warehouse ON rack(warehouse_id);
 CREATE TABLE IF NOT EXISTS slot (
   id TEXT PRIMARY KEY,
   rack_id TEXT NOT NULL REFERENCES rack(id),
+  warehouse_id TEXT REFERENCES warehouse(id),
   level_no INTEGER NOT NULL,
   slot_no INTEGER NOT NULL,
   code TEXT NOT NULL UNIQUE,
@@ -70,6 +71,8 @@ CREATE TABLE IF NOT EXISTS slot (
 
 -- 索引：按货架、层、槽位加速定位
 CREATE INDEX IF NOT EXISTS idx_slot_rack_level ON slot(rack_id, level_no, slot_no);
+-- 索引：按仓库加速查询
+CREATE INDEX IF NOT EXISTS idx_slot_warehouse ON slot(warehouse_id);
 
 -- 物料（item）表：定义库存中的物品基础信息
 -- `item_code` 为物料编码（唯一），可包含 `model`、`spec`、`uom` 等属性

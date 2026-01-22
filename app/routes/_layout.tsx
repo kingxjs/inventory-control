@@ -20,7 +20,6 @@ export default function AppLayout() {
       {session?.must_change_pwd ? (
         <ForceChangePasswordDialog
           open={session.must_change_pwd}
-          actorOperatorId={session.actor_operator_id}
           onSuccess={handlePasswordChanged}
         />
       ) : null}

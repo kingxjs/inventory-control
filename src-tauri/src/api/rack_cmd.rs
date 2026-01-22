@@ -48,12 +48,15 @@ pub struct UpdateSlotStatusInput {
 pub struct ListRackQuery {
   pub page_index: i64,
   pub page_size: i64,
+  pub keyword: Option<String>,
+  pub warehouse_id: Option<String>,
   // actor_operator_id is now provided as top-level arg
 }
 
 #[derive(Debug, Deserialize)]
 pub struct ListSlotQuery {
-  pub rack_id: String,
+  pub rack_id: Option<String>,
+  pub warehouse_id: Option<String>,
   pub level_no: Option<i64>,
   // actor_operator_id is now provided as top-level arg
 }
@@ -80,7 +83,7 @@ pub async fn list_racks(
     AuditAction::RackList,
     None,
     Some(audit_request),
-    || async { rack_service::list_racks(&state.pool, input.page_index, input.page_size).await },
+    || async { rack_service::list_racks(&state.pool, input.page_index, input.page_size, input.keyword.clone(), input.warehouse_id.clone()).await },
   )
   .await
 }
@@ -221,6 +224,7 @@ pub async fn list_slots(
 ) -> Result<rack_service::SlotListResult, AppError> {
   let audit_request = json!({
     "rack_id": query.rack_id.clone(),
+    "warehouse_id": query.warehouse_id.clone(),
     "level_no": query.level_no,
     "actor_operator_id": actor_operator_id.clone()
   });
@@ -230,7 +234,7 @@ pub async fn list_slots(
     AuditAction::SlotList,
     None,
     Some(audit_request),
-    || async { rack_service::list_slots(&state.pool, &query.rack_id, query.level_no).await },
+    || async { rack_service::list_slots(&state.pool, query.rack_id.clone(), query.warehouse_id.clone(), query.level_no).await },
   )
   .await
 }
@@ -263,11 +267,81 @@ pub async fn regenerate_slots(
         &input.rack_id,
         &input.rack_code,
         None,
+        None,
         input.level_count,
         input.slots_per_level,
         now,
       )
       .await
+    },
+  )
+  .await
+}
+
+#[derive(Debug, Deserialize)]
+pub struct GetRackInput {
+  pub id: Option<String>,
+  pub code: Option<String>,
+  pub warehouse_id: Option<String>,
+}
+
+#[tauri::command]
+pub async fn get_rack(
+  state: State<'_, AppState>,
+  actor_operator_id: String,
+  input: GetRackInput,
+) -> Result<Option<crate::repo::rack_repo::RackRow>, AppError> {
+  permission_service::require_role_by_id(&state.pool, &actor_operator_id, &["admin", "keeper", "viewer", "member"]).await?;
+  let audit_request = json!({ "id": input.id.clone(), "code": input.code.clone(), "warehouse_id": input.warehouse_id.clone(), "actor_operator_id": actor_operator_id.clone() });
+  command_guard::run_with_audit(
+    &state.pool,
+    AuditAction::RackList,
+    None,
+    Some(audit_request),
+    || async {
+      if let Some(id) = input.id {
+        crate::repo::rack_repo::get_rack_by_id(&state.pool, &id).await
+      } else if let Some(code) = input.code {
+        if let Some(warehouse_id) = input.warehouse_id {
+          crate::repo::rack_repo::get_rack_by_code_and_warehouse(&state.pool, &code, &warehouse_id).await
+        } else {
+          crate::repo::rack_repo::get_rack_by_code(&state.pool, &code).await
+        }
+      } else {
+        Ok(None)
+      }
+    },
+  )
+  .await
+}
+
+#[derive(Debug, Deserialize)]
+pub struct GetSlotInput {
+  pub id: Option<String>,
+  pub code: Option<String>,
+}
+
+#[tauri::command]
+pub async fn get_slot(
+  state: State<'_, AppState>,
+  actor_operator_id: String,
+  input: GetSlotInput,
+) -> Result<Option<crate::repo::rack_repo::SlotRow>, AppError> {
+  permission_service::require_role_by_id(&state.pool, &actor_operator_id, &["admin", "keeper", "viewer", "member"]).await?;
+  let audit_request = json!({ "id": input.id.clone(), "code": input.code.clone(), "actor_operator_id": actor_operator_id.clone() });
+  command_guard::run_with_audit(
+    &state.pool,
+    AuditAction::SlotList,
+    None,
+    Some(audit_request),
+    || async {
+      if let Some(id) = input.id {
+        crate::repo::rack_repo::get_slot_by_id(&state.pool, &id).await
+      } else if let Some(code) = input.code {
+        crate::repo::rack_repo::get_slot_by_code(&state.pool, &code).await
+      } else {
+        Ok(None)
+      }
     },
   )
   .await

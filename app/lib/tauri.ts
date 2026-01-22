@@ -40,9 +40,9 @@ export async function tauriInvoke<T>(
         // shallow clone and inject only top-level actor identifiers
         const cloned = { ...(args as Record<string, unknown>) }
         // inject both snake_case and camelCase variants to be compatible with backend naming
-        if (!Object.prototype.hasOwnProperty.call(cloned, "actor_operator_id")) {
-          ;(cloned as any).actor_operator_id = operatorId
-        }
+        // if (!Object.prototype.hasOwnProperty.call(cloned, "actor_operator_id")) {
+        //   ;(cloned as any).actor_operator_id = operatorId
+        // }
         // actorOperatorId 对应后端 actor_operator_id 的 camelCase 变体
         if (!Object.prototype.hasOwnProperty.call(cloned, "actorOperatorId")) {
           ;(cloned as any).actorOperatorId = operatorId

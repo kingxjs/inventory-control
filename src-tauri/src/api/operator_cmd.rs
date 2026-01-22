@@ -10,6 +10,7 @@ use crate::state::AppState;
 
 #[derive(Debug, Deserialize)]
 pub struct OperatorListQuery {
+  pub keyword: Option<String>,
   pub status: Option<String>,
   // actor_operator_id provided as top-level arg
   pub page_index: i64,
@@ -68,6 +69,7 @@ pub async fn list_operators(
     || async {
       operator_service::list_operators(
         &state.pool,
+        query.keyword.clone(),
         status.clone(),
         query.page_index,
         query.page_size,
@@ -205,6 +207,36 @@ pub async fn reset_operator_password(
       )
       .await
     },
+  )
+  .await
+}
+
+#[derive(Debug, Deserialize)]
+pub struct GetOperatorInput {
+  pub id: String,
+}
+
+#[tauri::command]
+pub async fn get_operator(
+  state: State<'_, AppState>,
+  actor_operator_id: String,
+  input: GetOperatorInput,
+) -> Result<Option<crate::repo::operator_repo::OperatorRow>, AppError> {
+  // 允许常规角色读取（供选择器使用）
+  crate::services::permission_service::require_role_by_id(
+    &state.pool,
+    &actor_operator_id,
+    &["admin", "keeper", "viewer", "member"],
+  )
+  .await?;
+
+  let audit_request = json!({ "id": input.id.clone(), "actor_operator_id": actor_operator_id.clone() });
+  command_guard::run_with_audit(
+    &state.pool,
+    AuditAction::OperatorList,
+    None,
+    Some(audit_request),
+    || async { crate::repo::operator_repo::get_operator_by_id(&state.pool, &input.id).await },
   )
   .await
 }

@@ -140,8 +140,11 @@ export default function ItemsPage() {
   }
 
   useEffect(() => {
-    fetchItems(keyword, pageIndex)
-  }, [pageIndex])
+    const timer = window.setTimeout(() => {
+      void fetchItems(keyword, pageIndex)
+    }, 300)
+    return () => window.clearTimeout(timer)
+  }, [pageIndex, keyword])
 
   const resetForm = () => {
     form.reset({
@@ -655,7 +658,7 @@ export default function ItemsPage() {
       />
 
       <div className="flex flex-wrap items-end gap-3 rounded-2xl border border-slate-200/70 bg-slate-50/70 p-4">
-        <div className="min-w-[180px] flex-1 space-y-2">
+        <div className="min-w-[140px] w-[140px] max-w-[140px] flex-1 space-y-2">
           <Label>搜索</Label>
           <Input
             placeholder="名称/编号/型号"
@@ -663,7 +666,7 @@ export default function ItemsPage() {
             onChange={(event) => setKeyword(event.target.value)}
           />
         </div>
-        <div className="min-w-[160px] space-y-2">
+        <div className="flex-1 space-y-2">
           <Label>状态</Label>
           <Select value={status} onValueChange={setStatus}>
             <SelectTrigger>
@@ -735,14 +738,14 @@ export default function ItemsPage() {
                     <DropdownMenuContent align="end">
                       <DropdownMenuItem
                         onClick={() => {
-                          navigate(`/stock?tab=item&item_code=${encodeURIComponent(row.item_code)}`)
+                          navigate(`/stock?tab=item&item_id=${encodeURIComponent(row.id)}`)
                         }}
                       >
                         查看库存
                       </DropdownMenuItem>
                       <DropdownMenuItem
                         onClick={() => {
-                          navigate(`/txns?item_code=${encodeURIComponent(row.item_code)}`)
+                          navigate(`/txns?item_id=${encodeURIComponent(row.id)}`)
                         }}
                       >
                         查看流水

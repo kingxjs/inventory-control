@@ -102,8 +102,11 @@ export default function WarehousesPage() {
   }
 
   useEffect(() => {
-    fetchWarehouses(keyword, status, pageIndex)
-  }, [pageIndex])
+    const timer = window.setTimeout(() => {
+      void fetchWarehouses(keyword, status, pageIndex)
+    }, 300)
+    return () => window.clearTimeout(timer)
+  }, [pageIndex, keyword, status])
 
   const resetForm = () => {
     form.reset({
@@ -291,7 +294,7 @@ export default function WarehousesPage() {
       />
 
       <div className="flex flex-wrap items-end gap-3 rounded-2xl border border-slate-200/70 bg-slate-50/70 p-4">
-        <div className="min-w-[180px] flex-1 space-y-2">
+        <div className="min-w-[140px] w-[140px] max-w-[140px] flex-1 space-y-2">
           <Label>关键词</Label>
           <Input
             placeholder="搜索仓库编号或名称"
@@ -299,7 +302,7 @@ export default function WarehousesPage() {
             onChange={(event) => setKeyword(event.target.value)}
           />
         </div>
-        <div className="min-w-[160px] space-y-2">
+        <div className="flex-1 space-y-2">
           <Label>状态</Label>
           <Select value={status} onValueChange={setStatus}>
             <SelectTrigger>
@@ -312,11 +315,11 @@ export default function WarehousesPage() {
             </SelectContent>
           </Select>
         </div>
-        <Button variant="secondary" onClick={handleFilter}>
+        <Button variant="outline" onClick={handleFilter}>
           筛选
         </Button>
         <Button
-          variant="outline"
+          variant="secondary"
           onClick={() => {
             setKeyword("")
             setStatus("all")
@@ -366,7 +369,7 @@ export default function WarehousesPage() {
                       <DropdownMenuItem
                         onClick={() => {
                           navigate(
-                            `/stock?tab=slot&warehouse_code=${encodeURIComponent(row.code)}`
+                            `/stock?tab=slot&warehouse_id=${encodeURIComponent(row.id)}`
                           )
                         }}
                       >
@@ -374,7 +377,7 @@ export default function WarehousesPage() {
                       </DropdownMenuItem>
                       <DropdownMenuItem
                         onClick={() => {
-                          navigate(`/txns?warehouse_code=${encodeURIComponent(row.code)}`)
+                          navigate(`/txns?warehouse_id=${encodeURIComponent(row.id)}`)
                         }}
                       >
                         查看流水

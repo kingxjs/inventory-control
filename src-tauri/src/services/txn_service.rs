@@ -7,8 +7,8 @@ use crate::repo::{item_repo, operator_repo, rack_repo, stock_repo, txn_repo};
 
 pub async fn create_inbound(
   pool: &SqlitePool,
-  item_code: &str,
-  to_slot_code: &str,
+  item_id: &str,
+  to_slot_id: &str,
   qty: i64,
   occurred_at: i64,
   actor_operator_id: &str,
@@ -19,12 +19,11 @@ pub async fn create_inbound(
   }
 
   let operator = require_active_operator_by_id(pool, actor_operator_id).await?;
-  let item = require_active_item(pool, item_code).await?;
-  let slot = require_active_slot(pool, to_slot_code).await?;
 
   let now = Utc::now().timestamp();
-  let item_id = item.id.clone();
+  let item_id = item_id.to_string();
   let operator_id = operator.id.clone();
+  let slot_id = to_slot_id.to_string();
   let txn_id = Uuid::new_v4().to_string();
   let txn_no = format!("T{}", Uuid::new_v4());
 
@@ -39,7 +38,7 @@ pub async fn create_inbound(
     operator_id: operator_id.clone(),
     item_id: item_id.clone(),
     from_slot_id: None,
-    to_slot_id: Some(slot.id.clone()),
+    to_slot_id: Some(slot_id.clone()),
     qty,
     actual_qty: None,
     ref_txn_id: None,
@@ -47,9 +46,9 @@ pub async fn create_inbound(
   };
   txn_repo::insert_txn(&mut tx, &row).await?;
 
-  let current = stock_repo::get_stock_tx(&mut tx, &item_id, &slot.id).await?;
+  let current = stock_repo::get_stock_tx(&mut tx, &item_id, &slot_id).await?;
   let next_qty = current.map(|s| s.qty).unwrap_or(0) + qty;
-  stock_repo::upsert_stock_tx(&mut tx, &item_id, &slot.id, next_qty, now).await?;
+  stock_repo::upsert_stock_tx(&mut tx, &item_id, &slot_id, next_qty, now).await?;
 
   tx.commit().await?;
   Ok(txn_no)
@@ -57,8 +56,8 @@ pub async fn create_inbound(
 
 pub async fn create_outbound(
   pool: &SqlitePool,
-  item_code: &str,
-  from_slot_code: &str,
+  item_id: &str,
+  from_slot_id: &str,
   qty: i64,
   occurred_at: i64,
   actor_operator_id: &str,
@@ -69,18 +68,17 @@ pub async fn create_outbound(
   }
 
   let operator = require_active_operator_by_id(pool, actor_operator_id).await?;
-  let item = require_active_item(pool, item_code).await?;
-  let slot = require_active_slot(pool, from_slot_code).await?;
 
   let now = Utc::now().timestamp();
-  let item_id = item.id.clone();
+  let item_id = item_id.to_string();
   let operator_id = operator.id.clone();
+  let slot_id = from_slot_id.to_string();
   let txn_id = Uuid::new_v4().to_string();
   let txn_no = format!("T{}", Uuid::new_v4());
 
   let mut tx = pool.begin().await?;
 
-  let current = stock_repo::get_stock_tx(&mut tx, &item_id, &slot.id).await?;
+  let current = stock_repo::get_stock_tx(&mut tx, &item_id, &slot_id).await?;
   let current_qty = current.map(|s| s.qty).unwrap_or(0);
   if current_qty < qty {
     return Err(AppError::new(ErrorCode::InsufficientStock, "库存不足"));
@@ -95,7 +93,7 @@ pub async fn create_outbound(
     created_at: now,
     operator_id: operator_id.clone(),
     item_id: item_id.clone(),
-    from_slot_id: Some(slot.id.clone()),
+    from_slot_id: Some(slot_id.clone()),
     to_slot_id: None,
     qty,
     actual_qty: None,
@@ -103,7 +101,7 @@ pub async fn create_outbound(
     note,
   };
   txn_repo::insert_txn(&mut tx, &row).await?;
-  stock_repo::upsert_stock_tx(&mut tx, &item_id, &slot.id, next_qty, now).await?;
+  stock_repo::upsert_stock_tx(&mut tx, &item_id, &slot_id, next_qty, now).await?;
 
   tx.commit().await?;
   Ok(txn_no)
@@ -111,9 +109,9 @@ pub async fn create_outbound(
 
 pub async fn create_move(
   pool: &SqlitePool,
-  item_code: &str,
-  from_slot_code: &str,
-  to_slot_code: &str,
+  item_id: &str,
+  from_slot_id: &str,
+  to_slot_id: &str,
   qty: i64,
   occurred_at: i64,
   actor_operator_id: &str,
@@ -122,24 +120,23 @@ pub async fn create_move(
   if qty <= 0 {
     return Err(AppError::new(ErrorCode::ValidationError, "数量必须为正整数"));
   }
-  if from_slot_code == to_slot_code {
+  if from_slot_id == to_slot_id {
     return Err(AppError::new(ErrorCode::ValidationError, "来源与目标库位不能相同"));
   }
 
   let operator = require_active_operator_by_id(pool, actor_operator_id).await?;
-  let item = require_active_item(pool, item_code).await?;
-  let from_slot = require_active_slot(pool, from_slot_code).await?;
-  let to_slot = require_active_slot(pool, to_slot_code).await?;
 
   let now = Utc::now().timestamp();
-  let item_id = item.id.clone();
+  let item_id = item_id.to_string();
   let operator_id = operator.id.clone();
+  let from_slot_id_local = from_slot_id.to_string();
+  let to_slot_id_local = to_slot_id.to_string();
   let txn_id = Uuid::new_v4().to_string();
   let txn_no = format!("T{}", Uuid::new_v4());
 
   let mut tx = pool.begin().await?;
 
-  let current = stock_repo::get_stock_tx(&mut tx, &item_id, &from_slot.id).await?;
+  let current = stock_repo::get_stock_tx(&mut tx, &item_id, &from_slot_id_local).await?;
   let current_qty = current.map(|s| s.qty).unwrap_or(0);
   if current_qty < qty {
     return Err(AppError::new(ErrorCode::InsufficientStock, "库存不足"));
@@ -153,8 +150,8 @@ pub async fn create_move(
     created_at: now,
     operator_id: operator_id.clone(),
     item_id: item_id.clone(),
-    from_slot_id: Some(from_slot.id.clone()),
-    to_slot_id: Some(to_slot.id.clone()),
+    from_slot_id: Some(from_slot_id_local.clone()),
+    to_slot_id: Some(to_slot_id_local.clone()),
     qty,
     actual_qty: None,
     ref_txn_id: None,
@@ -163,10 +160,10 @@ pub async fn create_move(
   txn_repo::insert_txn(&mut tx, &row).await?;
 
   let from_next = current_qty - qty;
-  stock_repo::upsert_stock_tx(&mut tx, &item_id, &from_slot.id, from_next, now).await?;
-  let to_current = stock_repo::get_stock_tx(&mut tx, &item_id, &to_slot.id).await?;
+  stock_repo::upsert_stock_tx(&mut tx, &item_id, &from_slot_id_local, from_next, now).await?;
+  let to_current = stock_repo::get_stock_tx(&mut tx, &item_id, &to_slot_id_local).await?;
   let to_next = to_current.map(|s| s.qty).unwrap_or(0) + qty;
-  stock_repo::upsert_stock_tx(&mut tx, &item_id, &to_slot.id, to_next, now).await?;
+  stock_repo::upsert_stock_tx(&mut tx, &item_id, &to_slot_id_local, to_next, now).await?;
 
   tx.commit().await?;
   Ok(txn_no)
@@ -174,8 +171,8 @@ pub async fn create_move(
 
 pub async fn create_count(
   pool: &SqlitePool,
-  item_code: &str,
-  slot_code: &str,
+  item_id: &str,
+  slot_id: &str,
   actual_qty: i64,
   occurred_at: i64,
   actor_operator_id: &str,
@@ -186,12 +183,11 @@ pub async fn create_count(
   }
 
   let operator = require_active_operator_by_id(pool, actor_operator_id).await?;
-  let item = require_active_item(pool, item_code).await?;
-  let slot = require_active_slot(pool, slot_code).await?;
 
   let now = Utc::now().timestamp();
-  let item_id = item.id.clone();
+  let item_id = item_id.to_string();
   let operator_id = operator.id.clone();
+  let slot_id_local = slot_id.to_string();
   let count_txn_id = Uuid::new_v4().to_string();
   let adjust_txn_id = Uuid::new_v4().to_string();
   let count_txn_no = format!("T{}", Uuid::new_v4());
@@ -199,7 +195,7 @@ pub async fn create_count(
 
   let mut tx = pool.begin().await?;
 
-  let current = stock_repo::get_stock_tx(&mut tx, &item_id, &slot.id).await?;
+  let current = stock_repo::get_stock_tx(&mut tx, &item_id, &slot_id_local).await?;
   let current_qty = current.map(|s| s.qty).unwrap_or(0);
   let delta = actual_qty - current_qty;
 
@@ -211,7 +207,7 @@ pub async fn create_count(
     created_at: now,
     operator_id: operator_id.clone(),
     item_id: item_id.clone(),
-    from_slot_id: Some(slot.id.clone()),
+    from_slot_id: Some(slot_id_local.clone()),
     to_slot_id: None,
     qty: 0,
     actual_qty: Some(actual_qty),
@@ -228,7 +224,7 @@ pub async fn create_count(
     created_at: now,
     operator_id: operator_id.clone(),
     item_id: item_id.clone(),
-    from_slot_id: Some(slot.id.clone()),
+    from_slot_id: Some(slot_id_local.clone()),
     to_slot_id: None,
     qty: delta,
     actual_qty: None,
@@ -237,7 +233,7 @@ pub async fn create_count(
   };
   txn_repo::insert_txn(&mut tx, &adjust_row).await?;
 
-  stock_repo::upsert_stock_tx(&mut tx, &item_id, &slot.id, actual_qty, now).await?;
+  stock_repo::upsert_stock_tx(&mut tx, &item_id, &slot_id_local, actual_qty, now).await?;
 
   tx.commit().await?;
   Ok(count_txn_no)
@@ -340,11 +336,11 @@ pub async fn list_txns(
   pool: &SqlitePool,
   txn_type: Option<String>,
   keyword: Option<String>,
-  item_code: Option<String>,
-  slot_code: Option<String>,
-  warehouse_code: Option<String>,
-  rack_code: Option<String>,
-  operator_name: Option<String>,
+  item_id: Option<String>,
+  slot_id: Option<String>,
+  warehouse_id: Option<String>,
+  rack_id: Option<String>,
+  operator_id: Option<String>,
   start_at: Option<i64>,
   end_at: Option<i64>,
   page_index: i64,
@@ -355,11 +351,11 @@ pub async fn list_txns(
     pool,
     txn_type.clone(),
     keyword.clone(),
-    item_code.clone(),
-    slot_code.clone(),
-    warehouse_code.clone(),
-    rack_code.clone(),
-    operator_name.clone(),
+    item_id.clone(),
+    slot_id.clone(),
+    warehouse_id.clone(),
+    rack_id.clone(),
+    operator_id.clone(),
     start_at,
     end_at,
     page_index,
@@ -370,11 +366,11 @@ pub async fn list_txns(
     pool,
     txn_type,
     keyword,
-    item_code,
-    slot_code,
-    warehouse_code,
-    rack_code,
-    operator_name,
+    item_id,
+    slot_id,
+    warehouse_id,
+    rack_id,
+    operator_id,
     start_at,
     end_at,
   )
@@ -397,6 +393,7 @@ async fn require_active_operator_by_id(
   Ok(operator)
 }
 
+#[allow(dead_code)]
 async fn require_active_item(
   pool: &SqlitePool,
   item_code: &str,
@@ -412,6 +409,7 @@ async fn require_active_item(
   Ok(item)
 }
 
+#[allow(dead_code)]
 async fn require_active_slot(
   pool: &SqlitePool,
   slot_code: &str,
@@ -425,6 +423,21 @@ async fn require_active_slot(
   }
 
   Ok(slot)
+}
+
+#[allow(dead_code)]
+async fn require_active_item_by_id(
+  pool: &SqlitePool,
+  item_id: &str,
+) -> Result<item_repo::ItemRow, AppError> {
+  let item = item_repo::get_item_by_id(pool, item_id)
+    .await?
+    .ok_or_else(|| AppError::new(ErrorCode::NotFound, "物品不存在"))?;
+
+  if item.status != "active" {
+    return Err(AppError::new(ErrorCode::InactiveResource, "物品已停用"));
+  }
+  Ok(item)
 }
 
 fn normalize_page(page_index: i64, page_size: i64) -> Result<(i64, i64), AppError> {

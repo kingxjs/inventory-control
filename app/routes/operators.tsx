@@ -90,11 +90,13 @@ export default function OperatorsPage() {
     },
   })
 
-  const fetchOperators = async (statusValue?: string, page = pageIndex) => {
+  const fetchOperators = async (keywordValue?: string, statusValue?: string, page = pageIndex) => {
     setLoading(true)
     try {
+      const trimmed = keywordValue?.trim()
       const result = await tauriInvoke<OperatorListResult>("list_operators", {
         query: {
+          keyword: trimmed || undefined,
           status: statusValue,
           page_index: page,
           page_size: pageSize,
@@ -111,8 +113,11 @@ export default function OperatorsPage() {
   }
 
   useEffect(() => {
-    fetchOperators(status === "all" ? undefined : status, pageIndex)
-  }, [pageIndex])
+    const timer = window.setTimeout(() => {
+      void fetchOperators(keyword, status === "all" ? undefined : status, pageIndex)
+    }, 300)
+    return () => window.clearTimeout(timer)
+  }, [pageIndex, keyword, status])
 
   const resetEditForm = () => {
     form.reset({
@@ -165,7 +170,7 @@ export default function OperatorsPage() {
       }
       setFormOpen(false)
       resetEditForm()
-      await fetchOperators(status === "all" ? undefined : status, pageIndex)
+      await fetchOperators(keyword, status === "all" ? undefined : status, pageIndex)
     } catch (err) {
       const message = err instanceof Error ? err.message : "保存失败"
       toast.error(message)
@@ -182,7 +187,7 @@ export default function OperatorsPage() {
         },
       })
       toast.success("状态更新成功")
-      await fetchOperators(status === "all" ? undefined : status, pageIndex)
+      await fetchOperators(keyword, status === "all" ? undefined : status, pageIndex)
     } catch (err) {
       const message = err instanceof Error ? err.message : "更新失败"
       toast.error(message)
@@ -213,14 +218,7 @@ export default function OperatorsPage() {
     }
   }
 
-  const filteredRows = rows.filter((row) => {
-    if (!keyword) return true
-    return (
-      row.username.includes(keyword) ||
-      row.display_name.includes(keyword) ||
-      row.role.includes(keyword)
-    )
-  })
+  const filteredRows = rows
 
   return (
     <div className="space-y-6">
@@ -356,7 +354,7 @@ export default function OperatorsPage() {
       />
 
       <div className="flex flex-wrap items-end gap-3 rounded-2xl border border-slate-200/70 bg-slate-50/70 p-4">
-        <div className="min-w-[180px] flex-1 space-y-2">
+        <div className="min-w-[140px] w-[140px] max-w-[140px] flex-1 space-y-2">
           <Label>搜索</Label>
           <Input
             placeholder="账号/姓名"
@@ -364,7 +362,7 @@ export default function OperatorsPage() {
             onChange={(event) => setKeyword(event.target.value)}
           />
         </div>
-        <div className="min-w-[160px] space-y-2">
+        <div className="flex-1 space-y-2">
           <Label>状态</Label>
           <Select value={status} onValueChange={setStatus}>
             <SelectTrigger>
@@ -378,21 +376,21 @@ export default function OperatorsPage() {
           </Select>
         </div>
         <Button
-          variant="secondary"
+          variant="outline"
           onClick={() => {
             setPageIndex(1)
-            fetchOperators(status === "all" ? undefined : status, 1)
+            fetchOperators(keyword,status === "all" ? undefined : status, 1)
           }}
         >
           筛选
         </Button>
         <Button
-          variant="outline"
+          variant="secondary"
           onClick={() => {
             setKeyword("")
             setStatus("all")
             setPageIndex(1)
-            fetchOperators(undefined, 1)
+            fetchOperators("",undefined, 1)
           }}
         >
           重置

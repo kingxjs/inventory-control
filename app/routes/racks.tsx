@@ -1,111 +1,95 @@
-import { useEffect, useState } from "react"
-import { useNavigate } from "react-router"
-import { useForm } from "react-hook-form"
-import { PageHeader } from "~/components/common/page-header"
-import { Button } from "~/components/ui/button"
-import { ConfirmButton } from "~/components/common/confirm-button"
-import {
-  Dialog,
-  DialogContent,
-  DialogDescription,
-  DialogHeader,
-  DialogTitle,
-  DialogTrigger,
-} from "~/components/ui/dialog"
-import { Form, FormControl, FormField, FormItem, FormLabel, FormMessage } from "~/components/ui/form"
-import { Input } from "~/components/ui/input"
-import { Label } from "~/components/ui/label"
-import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "~/components/ui/select"
-import { DropdownMenu, DropdownMenuContent, DropdownMenuItem, DropdownMenuTrigger } from "~/components/ui/dropdown-menu"
-import {
-  Pagination,
-  PaginationContent,
-  PaginationItem,
-  PaginationLink,
-  PaginationNext,
-  PaginationPrevious,
-} from "~/components/ui/pagination"
-import {
-  Table,
-  TableBody,
-  TableCell,
-  TableHead,
-  TableHeader,
-  TableRow,
-} from "~/components/ui/table"
-import { Badge } from "~/components/ui/badge"
-import { getSession } from "~/lib/auth"
-import { tauriInvoke } from "~/lib/tauri"
-import { toast } from "sonner"
+import { useEffect, useState } from "react";
+import { useNavigate, useSearchParams } from "react-router";
+import { useForm } from "react-hook-form";
+import { PageHeader } from "~/components/common/page-header";
+import { Button } from "~/components/ui/button";
+import { ConfirmButton } from "~/components/common/confirm-button";
+import { Dialog, DialogContent, DialogDescription, DialogHeader, DialogTitle, DialogTrigger } from "~/components/ui/dialog";
+import { Form, FormControl, FormField, FormItem, FormLabel, FormMessage } from "~/components/ui/form";
+import { Input } from "~/components/ui/input";
+import { Label } from "~/components/ui/label";
+import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "~/components/ui/select";
+import { DropdownMenu, DropdownMenuContent, DropdownMenuItem, DropdownMenuTrigger } from "~/components/ui/dropdown-menu";
+import { Pagination, PaginationContent, PaginationItem, PaginationLink, PaginationNext, PaginationPrevious } from "~/components/ui/pagination";
+import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "~/components/ui/table";
+import { Badge } from "~/components/ui/badge";
+import { WarehousePicker } from "~/components/common/pickers/warehouse-picker";
+import { getSession } from "~/lib/auth";
+import { tauriInvoke } from "~/lib/tauri";
+import { toast } from "sonner";
 
 type RackRow = {
-  id: string
-  code: string
-  name: string
-  warehouse_id?: string | null
-  location?: string | null
-  status: string
-  level_count: number
-  slots_per_level: number
-  created_at: number
-}
+  id: string;
+  code: string;
+  name: string;
+  warehouse_id?: string | null;
+  location?: string | null;
+  status: string;
+  level_count: number;
+  slots_per_level: number;
+  created_at: number;
+};
 
 type RackListResult = {
-  items: RackRow[]
-  total: number
-}
+  items: RackRow[];
+  total: number;
+};
 
 type SlotRow = {
-  id: string
-  rack_id: string
-  level_no: number
-  slot_no: number
-  code: string
-  status: string
-  created_at: number
-}
+  id: string;
+  rack_id: string;
+  level_no: number;
+  slot_no: number;
+  code: string;
+  status: string;
+  created_at: number;
+};
 
 type SlotListResult = {
-  items: SlotRow[]
-}
+  items: SlotRow[];
+};
 
 type RackFormValues = {
-  warehouseId: string
-  codeSuffix: string
-  name: string
-  location: string
-  levelCount: string
-  slotsPerLevel: string
-}
+  warehouseId: string;
+  codeSuffix: string;
+  name: string;
+  location: string;
+  levelCount: string;
+  slotsPerLevel: string;
+};
 
 type WarehouseRow = {
-  id: string
-  code: string
-  name: string
-  status: string
-  created_at: number
-}
+  id: string;
+  code: string;
+  name: string;
+  status: string;
+  created_at: number;
+};
 
 type WarehouseListResult = {
-  items: WarehouseRow[]
-  total: number
-}
+  items: WarehouseRow[];
+  total: number;
+};
 
 export default function RacksPage() {
-  const navigate = useNavigate()
-  const [rows, setRows] = useState<RackRow[]>([])
-  const [loading, setLoading] = useState(false)
-  const [formOpen, setFormOpen] = useState(false)
-  const [editRack, setEditRack] = useState<RackRow | null>(null)
-  const [warehouses, setWarehouses] = useState<WarehouseRow[]>([])
-  const [slotOpen, setSlotOpen] = useState(false)
-  const [slotRows, setSlotRows] = useState<SlotRow[]>([])
-  const [slotLoading, setSlotLoading] = useState(false)
-  const [slotLevel, setSlotLevel] = useState("")
-  const [activeRack, setActiveRack] = useState<RackRow | null>(null)
-  const [pageIndex, setPageIndex] = useState(1)
-  const [pageSize] = useState(20)
-  const [total, setTotal] = useState(0)
+  const navigate = useNavigate();
+  const [searchParams] = useSearchParams();
+  const [rows, setRows] = useState<RackRow[]>([]);
+  const [loading, setLoading] = useState(false);
+  const [formOpen, setFormOpen] = useState(false);
+  const [editRack, setEditRack] = useState<RackRow | null>(null);
+  const [warehouses, setWarehouses] = useState<WarehouseRow[]>([]);
+  const [slotOpen, setSlotOpen] = useState(false);
+  const [slotRows, setSlotRows] = useState<SlotRow[]>([]);
+  const [slotLoading, setSlotLoading] = useState(false);
+  const [slotLevel, setSlotLevel] = useState("");
+  const [activeRack, setActiveRack] = useState<RackRow | null>(null);
+  const [pageIndex, setPageIndex] = useState(1);
+  const [pageSize] = useState(20);
+  const [total, setTotal] = useState(0);
+  const [keyword, setKeyword] = useState("");
+  const [status, setStatus] = useState("all");
+  const [warehouseFilter, setWarehouseFilter] = useState("");
   const form = useForm<RackFormValues>({
     defaultValues: {
       warehouseId: "",
@@ -115,23 +99,25 @@ export default function RacksPage() {
       levelCount: "",
       slotsPerLevel: "",
     },
-  })
+  });
 
-  const fetchRacks = async (page = pageIndex) => {
-    setLoading(true)
+  const fetchRacks = async (page = pageIndex, keywordValue = keyword, statusValue = status, warehouseId = warehouseFilter) => {
+    setLoading(true);
     try {
+      const trimmed = keywordValue?.trim();
+      const normalizedStatus = statusValue === "all" ? undefined : statusValue;
       const result = await tauriInvoke<RackListResult>("list_racks", {
-        input: { page_index: page, page_size: pageSize },
-      })
-      setRows(result.items)
-      setTotal(result.total)
+        input: { keyword: trimmed || undefined, status: normalizedStatus, warehouse_id: warehouseId || undefined, page_index: page, page_size: pageSize },
+      });
+      setRows(result.items);
+      setTotal(result.total);
     } catch (err) {
-      const message = err instanceof Error ? err.message : "加载失败"
-      toast.error(message)
+      const message = err instanceof Error ? err.message : "加载失败";
+      toast.error(message);
     } finally {
-      setLoading(false)
+      setLoading(false);
     }
-  }
+  };
 
   const fetchWarehouses = async () => {
     try {
@@ -140,20 +126,32 @@ export default function RacksPage() {
           page_index: 1,
           page_size: 200,
         },
-      })
-      setWarehouses(result.items)
+      });
+      setWarehouses(result.items);
     } catch {
-      setWarehouses([])
+      setWarehouses([]);
     }
-  }
+  };
 
   useEffect(() => {
-    fetchRacks()
-  }, [pageIndex])
+    const timer = window.setTimeout(() => {
+      void fetchRacks(pageIndex, keyword, status, warehouseFilter);
+    }, 300);
+    return () => window.clearTimeout(timer);
+  }, [pageIndex, keyword, status, warehouseFilter]);
 
   useEffect(() => {
-    fetchWarehouses()
-  }, [])
+    fetchWarehouses();
+  }, []);
+
+  useEffect(() => {
+    const warehouseIdParam = searchParams.get("warehouse_id");
+    if (warehouseIdParam) {
+      setWarehouseFilter(warehouseIdParam);
+      // trigger a fetch for that warehouse filter
+      void fetchRacks(1, keyword, status, warehouseIdParam);
+    }
+  }, [searchParams]);
 
   const resetForm = () => {
     form.reset({
@@ -163,39 +161,36 @@ export default function RacksPage() {
       location: "",
       levelCount: "",
       slotsPerLevel: "",
-    })
-  }
+    });
+  };
 
-  const warehouseId = form.watch("warehouseId")
-  const codeSuffix = form.watch("codeSuffix")
-  const normalizeSuffix = (value: string) =>
-    value.trim().replace(/^R+/i, "").replace(/\D/g, "")
+  const warehouseId = form.watch("warehouseId");
+  const codeSuffix = form.watch("codeSuffix");
+  const normalizeSuffix = (value: string) => value.trim().replace(/^R+/i, "").replace(/\D/g, "");
   const formatSuffix = (value: string) => {
-    const digits = normalizeSuffix(value)
-    return digits ? digits.padStart(2, "0") : ""
-  }
-  const formattedSuffix = formatSuffix(codeSuffix || "")
-  const rackCode = formattedSuffix ? `R${formattedSuffix}` : ""
-  const warehouseMap = new Map(warehouses.map((warehouse) => [warehouse.id, warehouse]))
+    const digits = normalizeSuffix(value);
+    return digits ? digits.padStart(2, "0") : "";
+  };
+  const formattedSuffix = formatSuffix(codeSuffix || "");
+  const rackCode = formattedSuffix ? `R${formattedSuffix}` : "";
+  const warehouseMap = new Map(warehouses.map((warehouse) => [warehouse.id, warehouse]));
   const warehouseLabel = (id?: string | null) => {
-    if (!id) return "-"
-    const warehouse = warehouseMap.get(id)
-    if (!warehouse) return "-"
+    if (!id) return "-";
+    const warehouse = warehouseMap.get(id);
+    if (!warehouse) return "-";
     return (
       <div className="flex items-center gap-2">
         <Badge variant="secondary">{warehouse.code}</Badge>
         <span className="truncate">{warehouse.name}</span>
       </div>
-    )
-  }
-  const availableWarehouses = warehouses.filter(
-    (warehouse) => warehouse.status === "active" || warehouse.id === warehouseId,
-  )
+    );
+  };
+  const availableWarehouses = warehouses.filter((warehouse) => warehouse.status === "active" || warehouse.id === warehouseId);
 
   const handleCreate = async (values: RackFormValues) => {
-    const formattedCode = formatSuffix(values.codeSuffix)
-    const rackCode = formattedCode ? `R${formattedCode}` : ""
-    const normalizedName = values.name.trim() || rackCode
+    const formattedCode = formatSuffix(values.codeSuffix);
+    const rackCode = formattedCode ? `R${formattedCode}` : "";
+    const normalizedName = values.name.trim() || rackCode;
     try {
       await tauriInvoke("create_rack", {
         input: {
@@ -206,21 +201,21 @@ export default function RacksPage() {
           level_count: Number(values.levelCount),
           slots_per_level: Number(values.slotsPerLevel),
         },
-      })
-      toast.success("货架创建成功")
-      setFormOpen(false)
-      resetForm()
-      await fetchRacks()
+      });
+      toast.success("货架创建成功");
+      setFormOpen(false);
+      resetForm();
+      await fetchRacks();
     } catch (err) {
-      const message = err instanceof Error ? err.message : "创建失败"
-      toast.error(message)
+      const message = err instanceof Error ? err.message : "创建失败";
+      toast.error(message);
     }
-  }
+  };
 
   const handleUpdate = async (values: RackFormValues) => {
-    if (!editRack) return
-    
-    const normalizedName = values.name.trim() || editRack.code
+    if (!editRack) return;
+
+    const normalizedName = values.name.trim() || editRack.code;
     try {
       await tauriInvoke("update_rack", {
         input: {
@@ -231,26 +226,26 @@ export default function RacksPage() {
           level_count: Number(values.levelCount),
           slots_per_level: Number(values.slotsPerLevel),
         },
-      })
-      toast.success("货架更新成功")
-      setFormOpen(false)
-      setEditRack(null)
-      resetForm()
-      await fetchRacks()
+      });
+      toast.success("货架更新成功");
+      setFormOpen(false);
+      setEditRack(null);
+      resetForm();
+      await fetchRacks();
     } catch (err) {
-      const message = err instanceof Error ? err.message : "更新失败"
-      toast.error(message)
+      const message = err instanceof Error ? err.message : "更新失败";
+      toast.error(message);
     }
-  }
+  };
 
   const openCreate = () => {
-    setEditRack(null)
-    resetForm()
-    setFormOpen(true)
-  }
+    setEditRack(null);
+    resetForm();
+    setFormOpen(true);
+  };
 
   const openEdit = (row: RackRow) => {
-    setEditRack(row)
+    setEditRack(row);
     form.reset({
       codeSuffix: row.code.replace(/^R+/i, ""),
       name: row.name,
@@ -258,77 +253,76 @@ export default function RacksPage() {
       location: row.location || "",
       levelCount: String(row.level_count),
       slotsPerLevel: String(row.slots_per_level),
-    })
-    setFormOpen(true)
-  }
+    });
+    setFormOpen(true);
+  };
 
   const handleToggleStatus = async (row: RackRow) => {
-    const nextStatus = row.status === "active" ? "inactive" : "active"
+    const nextStatus = row.status === "active" ? "inactive" : "active";
     try {
       await tauriInvoke("set_rack_status", {
         input: {
           id: row.id,
           status: nextStatus,
         },
-      })
-      toast.success("状态更新成功")
-      await fetchRacks()
+      });
+      toast.success("状态更新成功");
+      await fetchRacks();
     } catch (err) {
-      const message = err instanceof Error ? err.message : "更新失败"
-      toast.error(message)
+      const message = err instanceof Error ? err.message : "更新失败";
+      toast.error(message);
     }
-  }
+  };
 
   const fetchSlots = async (rackId: string, levelNo?: number) => {
-    setSlotLoading(true)
+    setSlotLoading(true);
     try {
       const result = await tauriInvoke<SlotListResult>("list_slots", {
         query: {
           rack_id: rackId,
           level_no: levelNo,
         },
-      })
-      setSlotRows(result.items)
+      });
+      setSlotRows(result.items);
     } catch (err) {
-      const message = err instanceof Error ? err.message : "加载库位失败"
-      toast.error(message)
+      const message = err instanceof Error ? err.message : "加载库位失败";
+      toast.error(message);
     } finally {
-      setSlotLoading(false)
+      setSlotLoading(false);
     }
-  }
+  };
 
   const openSlots = async (row: RackRow) => {
-    setActiveRack(row)
-    setSlotLevel("")
-    setSlotOpen(true)
-    await fetchSlots(row.id)
-  }
+    setActiveRack(row);
+    setSlotLevel("");
+    setSlotOpen(true);
+    await fetchSlots(row.id);
+  };
 
   const handleSlotFilter = async () => {
-    if (!activeRack) return
-    const levelNo = slotLevel ? Number(slotLevel) : undefined
-    await fetchSlots(activeRack.id, levelNo)
-  }
+    if (!activeRack) return;
+    const levelNo = slotLevel ? Number(slotLevel) : undefined;
+    await fetchSlots(activeRack.id, levelNo);
+  };
 
   const handleSlotStatus = async (slot: SlotRow) => {
-    
-    const nextStatus = slot.status === "active" ? "inactive" : "active"
+    const nextStatus = slot.status === "active" ? "inactive" : "active";
     try {
       await tauriInvoke("set_slot_status", {
         input: {
           slot_id: slot.id,
           status: nextStatus,
         },
-      })
-      toast.success("库位状态更新成功")
+      });
+      toast.success("库位状态更新成功");
       if (activeRack) {
-        await fetchSlots(activeRack.id, slotLevel ? Number(slotLevel) : undefined)
+        await fetchSlots(activeRack.id, slotLevel ? Number(slotLevel) : undefined);
       }
     } catch (err) {
-      const message = err instanceof Error ? err.message : "更新库位失败"
-      toast.error(message)
+      const message = err instanceof Error ? err.message : "更新库位失败";
+      toast.error(message);
     }
-  }
+  };
 
   return (
     <div className="space-y-6">
@@ -339,10 +333,10 @@ export default function RacksPage() {
           <Dialog
             open={formOpen}
             onOpenChange={(open) => {
-              setFormOpen(open)
+              setFormOpen(open);
               if (!open) {
-                setEditRack(null)
-                resetForm()
+                setEditRack(null);
+                resetForm();
               }
             }}
           >
@@ -352,15 +346,13 @@ export default function RacksPage() {
             <DialogContent className="max-w-lg">
               <DialogHeader>
                 <DialogTitle>{editRack ? "编辑货架" : "新增货架"}</DialogTitle>
-                <DialogDescription>
-                  {editRack ? "调整货架层数与格数" : "填写货架基本信息"}
-                </DialogDescription>
+                <DialogDescription>{editRack ? "调整货架层数与格数" : "填写货架基本信息"}</DialogDescription>
               </DialogHeader>
               <Form {...form}>
                 <form
                   onSubmit={(event) => {
-                    event.preventDefault()
-                    void form.handleSubmit(editRack ? handleUpdate : handleCreate)()
+                    event.preventDefault();
+                    void form.handleSubmit(editRack ? handleUpdate : handleCreate)();
                   }}
                   className="space-y-4"
                 >
@@ -374,21 +366,7 @@ export default function RacksPage() {
                       <FormItem className="grid gap-2">
                         <FormLabel>所属仓库</FormLabel>
                         <FormControl>
-                          <Select value={field.value} onValueChange={field.onChange}>
-                            <SelectTrigger>
-                              <SelectValue placeholder="请选择仓库" />
-                            </SelectTrigger>
-                            <SelectContent>
-                              {availableWarehouses.map((warehouse) => (
-                                <SelectItem key={warehouse.id} value={warehouse.id}>
-                                  <div className="flex items-center gap-2">
-                                    <Badge variant="secondary">{warehouse.code}</Badge>
-                                    <span className="truncate">{warehouse.name}</span>
-                                  </div>
-                                </SelectItem>
-                              ))}
-                            </SelectContent>
-                          </Select>
+                          <WarehousePicker value={field.value} onChange={field.onChange} />
                         </FormControl>
                         <FormMessage />
                       </FormItem>
@@ -400,28 +378,19 @@ export default function RacksPage() {
                       name="codeSuffix"
                       rules={{
                         validate: (value) => {
-                          if (editRack) return true
-                          const trimmed = value.trim().replace(/^R+/i, "")
-                          if (!trimmed) return "请输入货架编号"
-                          if (!/^\d+$/.test(trimmed)) return "货架编号只能输入数字"
-                          if (Number(trimmed) <= 0) return "货架编号必须大于 0"
-                          return true
+                          if (editRack) return true;
+                          const trimmed = value.trim().replace(/^R+/i, "");
+                          if (!trimmed) return "请输入货架编号";
+                          if (!/^\d+$/.test(trimmed)) return "货架编号只能输入数字";
+                          if (Number(trimmed) <= 0) return "货架编号必须大于 0";
+                          return true;
                         },
                       }}
                       render={({ field }) => (
                         <FormItem className="grid gap-2">
                           <FormLabel htmlFor="rack-code">货架编号</FormLabel>
                           <FormControl>
-                            <Input
-                              id="rack-code"
-                              placeholder="例如 04"
-                              disabled={!!editRack}
-                              type="number"
-                              min={1}
-                              inputMode="numeric"
-                              pattern="[0-9]*"
-                              {...field}
-                            />
+                            <Input id="rack-code" placeholder="例如 04" disabled={!!editRack} type="number" min={1} inputMode="numeric" pattern="[0-9]*" {...field} />
                           </FormControl>
                           <FormMessage />
                         </FormItem>
@@ -444,9 +413,7 @@ export default function RacksPage() {
                       )}
                     />
                   </div>
-                  <p className="text-xs text-slate-500">
-                    完整编号：{rackCode || "R"}
-                  </p>
+                  <p className="text-xs text-slate-500">完整编号：{rackCode || "R"}</p>
                   <FormField
                     control={form.control}
                     name="location"
@@ -468,20 +435,13 @@ export default function RacksPage() {
                       control={form.control}
                       name="levelCount"
                       rules={{
-                        validate: (value) =>
-                          Number(value) > 0 ? true : "请输入有效层数",
+                        validate: (value) => (Number(value) > 0 ? true : "请输入有效层数"),
                       }}
                       render={({ field }) => (
                         <FormItem className="grid gap-2">
                           <FormLabel htmlFor="rack-level">层数</FormLabel>
                           <FormControl>
-                            <Input
-                              id="rack-level"
-                              placeholder="例如 4"
-                              type="number"
-                              min={1}
-                              {...field}
-                            />
+                            <Input id="rack-level" placeholder="例如 4" type="number" min={1} {...field} />
                           </FormControl>
                           <FormMessage />
                         </FormItem>
@@ -491,35 +451,20 @@ export default function RacksPage() {
                       control={form.control}
                       name="slotsPerLevel"
                       rules={{
-                        validate: (value) =>
-                          Number(value) > 0 ? true : "请输入有效格数",
+                        validate: (value) => (Number(value) > 0 ? true : "请输入有效格数"),
                       }}
                       render={({ field }) => (
                         <FormItem className="grid gap-2">
                           <FormLabel htmlFor="rack-slot">每层格数</FormLabel>
                           <FormControl>
-                            <Input
-                              id="rack-slot"
-                              placeholder="例如 12"
-                              type="number"
-                              min={1}
-                              {...field}
-                            />
+                            <Input id="rack-slot" placeholder="例如 12" type="number" min={1} {...field} />
                           </FormControl>
                           <FormMessage />
                         </FormItem>
                       )}
                     />
                   </div>
-                  <ConfirmButton
-                    className="w-full"
-                    label="保存"
-                    confirmText={editRack ? "确认保存货架变更？" : "确认创建货架？"}
-                    onBeforeConfirmOpen={() => form.trigger()}
-                    onConfirm={() =>
-                      form.handleSubmit(editRack ? handleUpdate : handleCreate)()
-                    }
-                  />
+                  <ConfirmButton className="w-full" label="保存" confirmText={editRack ? "确认保存货架变更？" : "确认创建货架？"} onBeforeConfirmOpen={() => form.trigger()} onConfirm={() => form.handleSubmit(editRack ? handleUpdate : handleCreate)()} />
                 </form>
               </Form>
             </DialogContent>
@@ -527,29 +472,51 @@ export default function RacksPage() {
         }
       />
 
-      <div className="flex flex-wrap items-end gap-3 rounded-2xl border border-slate-200/70 bg-slate-50/70 p-4">
-        <div className="min-w-[180px] flex-1 space-y-2">
-          <Label>关键词</Label>
-          <Input placeholder="搜索货架编号或名称" />
+      <div className="space-y-6">
+        <div className="flex flex-wrap items-end gap-3 rounded-2xl border border-slate-200/70 bg-slate-50/70 p-4">
+          <div className="min-w-[180px] max-w-[180px] flex-1 space-y-2">
+            <Label>仓库</Label>
+            <WarehousePicker value={warehouseFilter} onChange={(v) => setWarehouseFilter(v)} placeholder="全部" />
+          </div>
+          <div className="min-w-[140px] w-[140px] max-w-[140px] flex-1 space-y-2">
+            <Label>关键词</Label>
+            <Input placeholder="搜索货架编号或名称" value={keyword} onChange={(e) => setKeyword(e.target.value)} />
+          </div>
+          <div className="flex-1 space-y-2">
+            <Label>状态</Label>
+            <Select value={status} onValueChange={setStatus}>
+              <SelectTrigger>
+                <SelectValue placeholder="请选择" />
+              </SelectTrigger>
+              <SelectContent>
+                <SelectItem value="all">全部</SelectItem>
+                <SelectItem value="active">启用</SelectItem>
+                <SelectItem value="inactive">停用</SelectItem>
+              </SelectContent>
+            </Select>
+          </div>
+          <Button
+            variant="outline"
+            onClick={() => {
+              setPageIndex(1);
+              void fetchRacks(1, keyword, status, warehouseFilter);
+            }}
+          >
+            筛选
+          </Button>
+          <Button
+            variant="secondary"
+            onClick={() => {
+              setKeyword("");
+              setStatus("all");
+              setWarehouseFilter("");
+              setPageIndex(1);
+              void fetchRacks(1, "", "all", "");
+            }}
+          >
+            重置
+          </Button>
         </div>
-        <div className="min-w-[160px] space-y-2">
-          <Label>状态</Label>
-          <Select defaultValue="all">
-            <SelectTrigger>
-              <SelectValue placeholder="请选择" />
-            </SelectTrigger>
-            <SelectContent>
-              <SelectItem value="all">全部</SelectItem>
-              <SelectItem value="active">启用</SelectItem>
-              <SelectItem value="inactive">停用</SelectItem>
-            </SelectContent>
-          </Select>
-        </div>
-        <Button variant="secondary">筛选</Button>
-        <Button variant="outline">重置</Button>
-      </div>
-
-      <div className="rounded-2xl border border-slate-200/70 bg-white">
         <Table>
           <TableHeader>
             <TableRow>
@@ -566,7 +533,7 @@ export default function RacksPage() {
           </TableHeader>
           <TableBody>
             {rows.map((row) => (
-              <TableRow key={row.code}>
+              <TableRow key={row.id}>
                 <TableCell className="font-medium">{row.code}</TableCell>
                 <TableCell>{row.name}</TableCell>
                 <TableCell>{warehouseLabel(row.warehouse_id)}</TableCell>
@@ -574,26 +541,14 @@ export default function RacksPage() {
                 <TableCell>{row.level_count}</TableCell>
                 <TableCell>{row.slots_per_level}</TableCell>
                 <TableCell>
-                  <Badge variant={row.status === "active" ? "secondary" : "outline"}>
-                    {row.status === "active" ? "启用" : "停用"}
-                  </Badge>
+                  <Badge variant={row.status === "active" ? "secondary" : "outline"}>{row.status === "active" ? "启用" : "停用"}</Badge>
                 </TableCell>
-                <TableCell>
-                  {new Date(row.created_at * 1000).toLocaleString()}
-                </TableCell>
+                <TableCell>{new Date(row.created_at * 1000).toLocaleString()}</TableCell>
                 <TableCell className="text-center">
-                  <Button
-                    variant="ghost"
-                    size="sm"
-                    onClick={() => openSlots(row)}
-                  >
+                  <Button variant="ghost" size="sm" onClick={() => openSlots(row)}>
                     查看库位
                   </Button>
-                  <Button
-                    variant="ghost"
-                    size="sm"
-                    onClick={() => openEdit(row)}
-                  >
+                  <Button variant="ghost" size="sm" onClick={() => openEdit(row)}>
                     编辑
                   </Button>
                   <DropdownMenu>
@@ -605,25 +560,19 @@ export default function RacksPage() {
                     <DropdownMenuContent align="end">
                       <DropdownMenuItem
                         onClick={() => {
-                          navigate(
-                            `/stock?tab=slot&rack_code=${encodeURIComponent(row.code)}`
-                          )
+                          navigate(`/stock?tab=slot&rack_id=${encodeURIComponent(row.id)}`);
                         }}
                       >
                         查看库存
                       </DropdownMenuItem>
                       <DropdownMenuItem
                         onClick={() => {
-                          navigate(`/txns?rack_code=${encodeURIComponent(row.code)}`)
+                          navigate(`/txns?rack_id=${encodeURIComponent(row.id)}`);
                         }}
                       >
                         查看流水
                       </DropdownMenuItem>
-                      <DropdownMenuItem
-                        onClick={() => handleToggleStatus(row)}
-                      >
-                        {row.status === "active" ? "停用" : "启用"}
-                      </DropdownMenuItem>
+                      <DropdownMenuItem onClick={() => handleToggleStatus(row)}>{row.status === "active" ? "停用" : "启用"}</DropdownMenuItem>
                     </DropdownMenuContent>
                   </DropdownMenu>
                 </TableCell>
@@ -658,21 +607,17 @@ export default function RacksPage() {
           <div className="flex flex-wrap items-end gap-3 rounded-2xl border border-slate-200/70 bg-slate-50/70 p-4">
             <div className="min-w-[140px] space-y-2">
               <Label>层号</Label>
-              <Input
-                placeholder="例如 1"
-                value={slotLevel}
-                onChange={(event) => setSlotLevel(event.target.value)}
-              />
+              <Input placeholder="例如 1" value={slotLevel} onChange={(event) => setSlotLevel(event.target.value)} />
             </div>
-            <Button variant="secondary" onClick={handleSlotFilter}>
+            <Button variant="outline" onClick={handleSlotFilter}>
               筛选
             </Button>
             <Button
-              variant="outline"
+              variant="secondary"
               onClick={() => {
-                setSlotLevel("")
+                setSlotLevel("");
                 if (activeRack) {
-                  fetchSlots(activeRack.id)
+                  fetchSlots(activeRack.id);
                 }
               }}
             >
@@ -698,15 +643,9 @@ export default function RacksPage() {
                     <TableCell>{slot.level_no}</TableCell>
                     <TableCell>{slot.slot_no}</TableCell>
                     <TableCell>
-                      <Badge
-                        variant={slot.status === "active" ? "secondary" : "outline"}
-                      >
-                        {slot.status === "active" ? "启用" : "停用"}
-                      </Badge>
+                      <Badge variant={slot.status === "active" ? "secondary" : "outline"}>{slot.status === "active" ? "启用" : "停用"}</Badge>
                     </TableCell>
-                    <TableCell>
-                      {new Date(slot.created_at * 1000).toLocaleString()}
-                    </TableCell>
+                    <TableCell>{new Date(slot.created_at * 1000).toLocaleString()}</TableCell>
                     <TableCell className="text-center">
                       <DropdownMenu>
                         <DropdownMenuTrigger asChild>
@@ -717,27 +656,19 @@ export default function RacksPage() {
                         <DropdownMenuContent align="end">
                           <DropdownMenuItem
                             onClick={() => {
-                              navigate(
-                                `/stock?tab=slot&slot_code=${encodeURIComponent(
-                                  slot.code
-                                )}`
-                              )
+                              navigate(`/stock?tab=slot&slot_id=${encodeURIComponent(slot.id)}`);
                             }}
                           >
                             查看库存
                           </DropdownMenuItem>
                           <DropdownMenuItem
                             onClick={() => {
-                              navigate(`/txns?slot_code=${encodeURIComponent(slot.code)}`)
+                              navigate(`/txns?slot_id=${encodeURIComponent(slot.id)}`);
                             }}
                           >
                             查看流水
                           </DropdownMenuItem>
-                          <DropdownMenuItem
-                            onClick={() => handleSlotStatus(slot)}
-                          >
-                            {slot.status === "active" ? "停用" : "启用"}
-                          </DropdownMenuItem>
+                          <DropdownMenuItem onClick={() => handleSlotStatus(slot)}>{slot.status === "active" ? "停用" : "启用"}</DropdownMenuItem>
                         </DropdownMenuContent>
                       </DropdownMenu>
                     </TableCell>
@@ -766,8 +697,8 @@ export default function RacksPage() {
               <PaginationPrevious
                 href="#"
                 onClick={(event) => {
-                  event.preventDefault()
-                  setPageIndex((prev) => Math.max(1, prev - 1))
+                  event.preventDefault();
+                  setPageIndex((prev) => Math.max(1, prev - 1));
                 }}
               />
             </PaginationItem>
@@ -775,9 +706,9 @@ export default function RacksPage() {
               <PaginationNext
                 href="#"
                 onClick={(event) => {
-                  event.preventDefault()
-                  const totalPages = Math.max(1, Math.ceil(total / pageSize))
-                  setPageIndex((prev) => Math.min(totalPages, prev + 1))
+                  event.preventDefault();
+                  const totalPages = Math.max(1, Math.ceil(total / pageSize));
+                  setPageIndex((prev) => Math.min(totalPages, prev + 1));
                 }}
               />
             </PaginationItem>
@@ -785,5 +716,5 @@ export default function RacksPage() {
         </Pagination>
       ) : null}
     </div>
-  )
+  );
 }

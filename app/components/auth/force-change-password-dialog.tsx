@@ -15,8 +15,10 @@ import { toast } from "sonner"
 
 type ForceChangePasswordDialogProps = {
   open: boolean
-  actorOperatorId: string
-  onSuccess: () => void
+  // 是否允许通过对话框右上角或点击遮罩关闭对话框，默认允许
+  closable?: boolean
+  onClose?: () => void
+  onSuccess?: () => void
 }
 
 type ForceChangePasswordValues = {
@@ -27,7 +29,9 @@ type ForceChangePasswordValues = {
 
 export function ForceChangePasswordDialog({
   open,
-  actorOperatorId,
+  // 默认不允许关闭，除非父组件明确传入 `closable={true}`
+  closable = false,
+  onClose,
   onSuccess,
 }: ForceChangePasswordDialogProps) {
   const [loading, setLoading] = useState(false)
@@ -52,12 +56,13 @@ export function ForceChangePasswordDialog({
     setLoading(true)
     try {
       await tauriInvoke("change_password", {
-        actorOperatorId,
         oldPassword: values.oldPassword,
         newPassword: values.nextPassword,
       })
       toast.success("密码修改成功")
-      onSuccess()
+      onSuccess?.()
+      // 提交成功后默认关闭对话框（如果父组件希望保持打开，可在 onSuccess 中决定）
+      onClose?.()
     } catch (err) {
       const message = err instanceof Error ? err.message : "修改失败"
       toast.error(message)
@@ -67,11 +72,18 @@ export function ForceChangePasswordDialog({
   }
 
   return (
-    <Dialog open={open}>
-      <DialogContent showCloseButton={false} className="max-w-lg">
+    <Dialog
+      open={open}
+      onOpenChange={(next) => {
+        // 当尝试关闭对话框（next === false）时，如果 closable 为 false 则阻止关闭
+        if (!closable && !next) return
+        if (!next) onClose?.()
+      }}
+    >
+      <DialogContent showCloseButton={closable === true} className="max-w-lg">
         <DialogHeader>
-          <DialogTitle>首次登录需修改密码</DialogTitle>
-          <DialogDescription>完成修改后可继续使用系统</DialogDescription>
+          <DialogTitle>修改密码</DialogTitle>
+          <DialogDescription>完成修改后，下次登录请使用新密码</DialogDescription>
         </DialogHeader>
         <Form {...form}>
           <form

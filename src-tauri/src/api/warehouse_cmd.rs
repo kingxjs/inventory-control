@@ -138,3 +138,35 @@ pub async fn set_warehouse_status(
   )
   .await
 }
+
+#[derive(Debug, Deserialize)]
+pub struct GetWarehouseInput {
+  pub id: Option<String>,
+  pub code: Option<String>,
+}
+
+#[tauri::command]
+pub async fn get_warehouse(
+  state: State<'_, AppState>,
+  actor_operator_id: String,
+  input: GetWarehouseInput,
+) -> Result<Option<crate::repo::warehouse_repo::WarehouseRow>, AppError> {
+  permission_service::require_role_by_id(&state.pool, &actor_operator_id, &["admin", "keeper", "viewer", "member"]).await?;
+  let audit_request = json!({ "id": input.id.clone(), "code": input.code.clone(), "actor_operator_id": actor_operator_id.clone() });
+  command_guard::run_with_audit(
+    &state.pool,
+    AuditAction::WarehouseList,
+    None,
+    Some(audit_request),
+    || async {
+      if let Some(id) = input.id {
+        crate::repo::warehouse_repo::get_warehouse_by_id(&state.pool, &id).await
+      } else if let Some(code) = input.code {
+        crate::repo::warehouse_repo::get_warehouse_by_code(&state.pool, &code).await
+      } else {
+        Ok(None)
+      }
+    },
+  )
+  .await
+}

@@ -1,59 +1,40 @@
-import { useEffect, useState } from "react"
-import { PageHeader } from "~/components/common/page-header"
-import { Badge } from "~/components/ui/badge"
-import { Button } from "~/components/ui/button"
-import { DatePicker } from "~/components/ui/date"
-import { Input } from "~/components/ui/input"
-import { Label } from "~/components/ui/label"
-import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "~/components/ui/select"
-import {
-  Pagination,
-  PaginationContent,
-  PaginationItem,
-  PaginationNext,
-  PaginationPrevious,
-} from "~/components/ui/pagination"
-import {
-  Table,
-  TableBody,
-  TableCell,
-  TableHead,
-  TableHeader,
-  TableRow,
-} from "~/components/ui/table"
-import {
-  Dialog,
-  DialogContent,
-  DialogDescription,
-  DialogHeader,
-  DialogTitle,
-} from "~/components/ui/dialog"
-import { getSession } from "~/lib/auth"
-import { tauriInvoke } from "~/lib/tauri"
-import { toast } from "sonner"
+import { useEffect, useState } from "react";
+import { PageHeader } from "~/components/common/page-header";
+import { Badge } from "~/components/ui/badge";
+import { Button } from "~/components/ui/button";
+import { DatePicker } from "~/components/ui/date";
+import { Input } from "~/components/ui/input";
+import { Label } from "~/components/ui/label";
+import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "~/components/ui/select";
+import { Pagination, PaginationContent, PaginationItem, PaginationNext, PaginationPrevious } from "~/components/ui/pagination";
+import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "~/components/ui/table";
+import { Dialog, DialogContent, DialogDescription, DialogHeader, DialogTitle } from "~/components/ui/dialog";
+import { getSession } from "~/lib/auth";
+import { tauriInvoke } from "~/lib/tauri";
+import { toast } from "sonner";
 
 type AuditRow = {
-  id: string
-  created_at: number
-  actor_operator_id?: string | null
-  actor_operator_name?: string | null
-  action: string
-  target_type?: string | null
-  target_id?: string | null
-  request_json?: string | null
-  result: string
-  error_code?: string | null
-  error_detail?: string | null
-}
+  id: string;
+  created_at: number;
+  actor_operator_id?: string | null;
+  actor_operator_name?: string | null;
+  action: string;
+  target_type?: string | null;
+  target_id?: string | null;
+  request_json?: string | null;
+  result: string;
+  error_code?: string | null;
+  error_detail?: string | null;
+};
 
 type AuditListResult = {
-  items: AuditRow[]
-  total: number
-}
+  items: AuditRow[];
+  total: number;
+};
 
 type AuditExportResult = {
-  file_path: string
-}
+  file_path: string;
+};
 
 const actionLabels: Record<string, string> = {
   AUTH_LOGIN: "登录",
@@ -88,7 +69,7 @@ const actionLabels: Record<string, string> = {
   MEDIA_ATTACHMENT_TXN_LIST: "查询媒体附件（流水图片）",
   MEDIA_ATTACHMENT_TXN_REMOVE: "删除媒体附件（流水图片）",
   MEDIA_ATTACHMENT_TXN_PATH_REWRITE: "重写媒体附件路径（流水）",
-  
+
   TXN_INBOUND: "入库",
   TXN_OUTBOUND: "出库",
   TXN_MOVE: "移库",
@@ -110,32 +91,33 @@ const actionLabels: Record<string, string> = {
   TXN_EXPORT: "导出流水",
   TXN_IMPORT: "导入流水",
   DASHBOARD_OVERVIEW: "仪表盘概览",
-}
+};
 
-const getActionLabel = (action: string) => actionLabels[action] ?? action
+const getActionLabel = (action: string) => actionLabels[action] ?? action;
 
 export default function AuditPage() {
-  const [rows, setRows] = useState<AuditRow[]>([])
-  const [loading, setLoading] = useState(false)
-  const [actionFilter, setActionFilter] = useState("all")
-  const [keyword, setKeyword] = useState("")
-  const [startDate, setStartDate] = useState("")
-  const [endDate, setEndDate] = useState("")
-  const [detailOpen, setDetailOpen] = useState(false)
-  const [activeRow, setActiveRow] = useState<AuditRow | null>(null)
-  const [pageIndex, setPageIndex] = useState(1)
-  const [pageSize] = useState(20)
-  const [total, setTotal] = useState(0)
+  const [rows, setRows] = useState<AuditRow[]>([]);
+  const [loading, setLoading] = useState(false);
+  const [actionFilter, setActionFilter] = useState("all");
+  const [keyword, setKeyword] = useState("");
+
+  const formatDate = (d: Date) => d.toISOString().slice(0, 10);
+  const today = new Date();
+  const defaultEndDate = formatDate(today);
+  const defaultStartDate = formatDate(new Date(today.getTime() - 6 * 24 * 60 * 60 * 1000));
+  const [startDate, setStartDate] = useState<string>(defaultStartDate);
+  const [endDate, setEndDate] = useState<string>(defaultEndDate);
+  const [detailOpen, setDetailOpen] = useState(false);
+  const [activeRow, setActiveRow] = useState<AuditRow | null>(null);
+  const [pageIndex, setPageIndex] = useState(1);
+  const [pageSize] = useState(20);
+  const [total, setTotal] = useState(0);
 
   const fetchLogs = async (action?: string, page = pageIndex) => {
-    const trimmedKeyword = keyword.trim()
-    const startAt = startDate
-      ? Math.floor(new Date(`${startDate}T00:00:00`).getTime() / 1000)
-      : undefined
-    const endAt = endDate
-      ? Math.floor(new Date(`${endDate}T23:59:59`).getTime() / 1000)
-      : undefined
-    setLoading(true)
+    const trimmedKeyword = keyword.trim();
+    const startAt = startDate ? Math.floor(new Date(`${startDate}T00:00:00`).getTime() / 1000) : undefined;
+    const endAt = endDate ? Math.floor(new Date(`${endDate}T23:59:59`).getTime() / 1000) : undefined;
+    setLoading(true);
     try {
       const result = await tauriInvoke<AuditListResult>("list_audit_logs", {
         input: {
@@ -146,35 +128,35 @@ export default function AuditPage() {
           page_index: page,
           page_size: pageSize,
         },
-      })
-      setRows(result.items)
-      setTotal(result.total)
+      });
+      setRows(result.items);
+      setTotal(result.total);
     } catch (err) {
-      const message = err instanceof Error ? err.message : "加载失败"
-      toast.error(message)
+      const message = err instanceof Error ? err.message : "加载失败";
+      toast.error(message);
     } finally {
-      setLoading(false)
+      setLoading(false);
     }
-  }
+  };
 
   useEffect(() => {
-    fetchLogs(actionFilter === "all" ? undefined : actionFilter, pageIndex)
-  }, [pageIndex])
+    fetchLogs(actionFilter === "all" ? undefined : actionFilter, pageIndex);
+  }, [pageIndex]);
 
   const openDetail = (row: AuditRow) => {
-    setActiveRow(row)
-    setDetailOpen(true)
-  }
+    setActiveRow(row);
+    setDetailOpen(true);
+  };
 
   const handleExport = async () => {
     try {
-      const result = await tauriInvoke<AuditExportResult>("export_audit_logs")
-      toast.success(`导出成功：${result.file_path}`)
+      const result = await tauriInvoke<AuditExportResult>("export_audit_logs");
+      toast.success(`导出成功：${result.file_path}`);
     } catch (err) {
-      const message = err instanceof Error ? err.message : "导出失败"
-      toast.error(message)
+      const message = err instanceof Error ? err.message : "导出失败";
+      toast.error(message);
     }
-  }
+  };
 
   return (
     <div className="space-y-6">
@@ -189,16 +171,20 @@ export default function AuditPage() {
       />
 
       <div className="flex flex-wrap items-end gap-3 rounded-2xl border border-slate-200/70 bg-slate-50/70 p-4">
-        <div className="min-w-[180px] flex-1 space-y-2">
+        <div className="min-w-[140px] w-[140px] max-w-[140px] flex-1 space-y-2">
           <Label>搜索</Label>
-          <Input
-            placeholder="动作/对象/用户"
-            value={keyword}
-            onChange={(event) => setKeyword(event.target.value)}
-          />
+          <Input placeholder="动作/对象/用户" value={keyword} onChange={(event) => setKeyword(event.target.value)} />
         </div>
-        <div className="min-w-[160px] space-y-2">
-          <Label>结果</Label>
+        <div className="min-w-[180px] space-y-2">
+          <Label>开始日期</Label>
+          <DatePicker value={startDate} onChange={setStartDate} />
+        </div>
+        <div className="min-w-[180px] space-y-2">
+          <Label>结束日期</Label>
+          <DatePicker value={endDate} onChange={setEndDate} />
+        </div>
+        <div className="flex-1 space-y-2">
+          <Label>动作</Label>
           <Select value={actionFilter} onValueChange={setActionFilter}>
             <SelectTrigger>
               <SelectValue placeholder="请选择" />
@@ -213,32 +199,24 @@ export default function AuditPage() {
             </SelectContent>
           </Select>
         </div>
-        <div className="min-w-[180px] space-y-2">
-          <Label>开始日期</Label>
-          <DatePicker value={startDate} onChange={setStartDate} />
-        </div>
-        <div className="min-w-[180px] space-y-2">
-          <Label>结束日期</Label>
-          <DatePicker value={endDate} onChange={setEndDate} />
-        </div>
         <Button
-          variant="secondary"
+          variant="outline"
           onClick={() => {
-            setPageIndex(1)
-            fetchLogs(actionFilter === "all" ? undefined : actionFilter, 1)
+            setPageIndex(1);
+            fetchLogs(actionFilter === "all" ? undefined : actionFilter, 1);
           }}
         >
           筛选
         </Button>
         <Button
-          variant="outline"
+          variant="secondary"
           onClick={() => {
-            setActionFilter("all")
-            setKeyword("")
-            setStartDate("")
-            setEndDate("")
-            setPageIndex(1)
-            fetchLogs(undefined, 1)
+            setActionFilter("all");
+            setKeyword("");
+            setStartDate("");
+            setEndDate("");
+            setPageIndex(1);
+            fetchLogs(undefined, 1);
           }}
         >
           重置
@@ -260,16 +238,12 @@ export default function AuditPage() {
           <TableBody>
             {rows.map((row) => (
               <TableRow key={row.id}>
-                <TableCell>
-                  {new Date(row.created_at * 1000).toLocaleString()}
-                </TableCell>
+                <TableCell>{new Date(row.created_at * 1000).toLocaleString()}</TableCell>
                 <TableCell>{row.actor_operator_name || row.actor_operator_id || "-"}</TableCell>
                 <TableCell>{getActionLabel(row.action)}</TableCell>
                 <TableCell>{row.target_id || "-"}</TableCell>
                 <TableCell>
-                  <Badge variant={row.result === "success" ? "secondary" : "destructive"}>
-                    {row.result === "success" ? "成功" : "失败"}
-                  </Badge>
+                  <Badge variant={row.result === "success" ? "secondary" : "destructive"}>{row.result === "success" ? "成功" : "失败"}</Badge>
                 </TableCell>
                 <TableCell className="text-center">
                   <Button variant="ghost" size="sm" onClick={() => openDetail(row)}>
@@ -299,8 +273,8 @@ export default function AuditPage() {
               <PaginationPrevious
                 href="#"
                 onClick={(event) => {
-                  event.preventDefault()
-                  setPageIndex((prev) => Math.max(1, prev - 1))
+                  event.preventDefault();
+                  setPageIndex((prev) => Math.max(1, prev - 1));
                 }}
               />
             </PaginationItem>
@@ -308,9 +282,9 @@ export default function AuditPage() {
               <PaginationNext
                 href="#"
                 onClick={(event) => {
-                  event.preventDefault()
-                  const totalPages = Math.max(1, Math.ceil(total / pageSize))
-                  setPageIndex((prev) => Math.min(totalPages, prev + 1))
+                  event.preventDefault();
+                  const totalPages = Math.max(1, Math.ceil(total / pageSize));
+                  setPageIndex((prev) => Math.min(totalPages, prev + 1));
                 }}
               />
             </PaginationItem>
@@ -321,28 +295,20 @@ export default function AuditPage() {
         <DialogContent className="max-w-2xl">
           <DialogHeader>
             <DialogTitle>审计详情</DialogTitle>
-            <DialogDescription>
-              {activeRow ? getActionLabel(activeRow.action) : "-"}
-            </DialogDescription>
+            <DialogDescription>{activeRow ? getActionLabel(activeRow.action) : "-"}</DialogDescription>
           </DialogHeader>
           {activeRow ? (
             <div className="grid gap-3 text-sm text-slate-600">
               <div className="flex flex-wrap gap-6">
-                <span>
-                  时间：{new Date(activeRow.created_at * 1000).toLocaleString()}
-                </span>
-                <span>
-                  操作人：{activeRow.actor_operator_name || activeRow.actor_operator_id || "-"}
-                </span>
+                <span>时间：{new Date(activeRow.created_at * 1000).toLocaleString()}</span>
+                <span>操作人：{activeRow.actor_operator_name || activeRow.actor_operator_id || "-"}</span>
                 <span>结果：{activeRow.result}</span>
               </div>
               <div className="flex flex-wrap gap-6">
                 <span>对象类型：{activeRow.target_type || "-"}</span>
                 <span>对象ID：{activeRow.target_id || "-"}</span>
               </div>
-              <div className="rounded-xl border border-slate-200 bg-slate-50 p-3 text-xs text-slate-500">
-                请求参数：{activeRow.request_json || "-"}
-              </div>
+              <div className="rounded-xl border border-slate-200 bg-slate-50 p-3 text-xs text-slate-500">请求参数：{activeRow.request_json || "-"}</div>
               <div className="rounded-xl border border-slate-200 bg-slate-50 p-3 text-xs text-slate-500">
                 错误码：{activeRow.error_code || "-"}
                 <br />
@@ -352,7 +318,6 @@ export default function AuditPage() {
           ) : null}
         </DialogContent>
       </Dialog>
-
     </div>
-  )
+  );
 }

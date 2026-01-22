@@ -15,13 +15,14 @@ pub struct OperatorListResult {
 
 pub async fn list_operators(
   pool: &SqlitePool,
+  keyword: Option<String>,
   status: Option<String>,
   page_index: i64,
   page_size: i64,
 ) -> Result<OperatorListResult, AppError> {
   let (page_index, page_size) = normalize_page(page_index, page_size)?;
-  let total = operator_repo::count_operators(pool, status.clone()).await?;
-  let items = operator_repo::list_operators(pool, status, page_index, page_size).await?;
+  let total = operator_repo::count_operators(pool, keyword.clone(), status.clone()).await?;
+  let items = operator_repo::list_operators(pool, keyword, status, page_index, page_size).await?;
   Ok(OperatorListResult { items, total })
 }
 
@@ -59,7 +60,7 @@ pub async fn create_operator(
   let now = Utc::now().timestamp();
   let id = Uuid::new_v4().to_string();
   let password_trimmed = password.trim();
-  if role != "member" && password_trimmed.is_empty() {
+  if role.as_str() != "member" && password_trimmed.is_empty() {
     return Err(AppError::new(ErrorCode::ValidationError, "初始密码不能为空"));
   }
   let (password_hash, must_change_pwd) = if password_trimmed.is_empty() {

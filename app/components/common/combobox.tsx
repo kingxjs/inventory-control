@@ -1,6 +1,6 @@
 import type { ReactNode } from "react"
 import { useEffect, useMemo, useRef, useState } from "react"
-import { CheckIcon, ChevronDownIcon } from "lucide-react"
+import { CheckIcon, ChevronDownIcon, X } from "lucide-react"
 
 import { cn } from "~/lib/utils"
 import { Button } from "~/components/ui/button"
@@ -15,6 +15,7 @@ import {
 import { Popover, PopoverContent, PopoverTrigger } from "~/components/ui/popover"
 
 type ComboboxOption = {
+  node?: any
   value: string
   label: ReactNode
   searchLabel?: string
@@ -23,7 +24,7 @@ type ComboboxOption = {
 type ComboboxProps = {
   options: ComboboxOption[]
   value: string
-  onChange: (value: string) => void
+  onChange: (value: string,node?: any) => void
   placeholder?: string
   searchPlaceholder?: string
   emptyText?: string
@@ -96,7 +97,32 @@ export function Combobox({
           <span className={cn("truncate", !selectedOption && "text-slate-400")}>
             {selectedOption ? selectedLabel : placeholder}
           </span>
-          <ChevronDownIcon className="ml-2 size-4 shrink-0 opacity-50" />
+          <div className="ml-2 flex items-center gap-2">
+            {value !== "" && value !== "all" ? (
+              <span
+                role="button"
+                tabIndex={0}
+                aria-label="清除选择"
+                className="rounded-full p-1 text-slate-500 hover:text-slate-700"
+                onClick={(e) => {
+                  e.stopPropagation()
+                  onChange("")
+                  setOpen(false)
+                }}
+                onKeyDown={(e) => {
+                  if (e.key === "Enter" || e.key === " ") {
+                    e.preventDefault()
+                    e.stopPropagation()
+                    onChange("")
+                    setOpen(false)
+                  }
+                }}
+              >
+                <X className="size-4" />
+              </span>
+            ) : null}
+            <ChevronDownIcon className="size-4 shrink-0 opacity-50" />
+          </div>
         </Button>
       </PopoverTrigger>
       <PopoverContent className="w-[--radix-popover-trigger-width] p-0">
@@ -123,7 +149,7 @@ export function Combobox({
                     (typeof option.label === "string" ? option.label : option.value)
                   }
                   onSelect={() => {
-                    onChange(option.value)
+                    onChange(option.value,option.node)
                     setOpen(false)
                   }}
                 >

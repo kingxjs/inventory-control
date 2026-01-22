@@ -1,5 +1,5 @@
 import { useEffect, useMemo, useState } from "react"
-import { useForm } from "react-hook-form"
+import { set, useForm } from "react-hook-form"
 import { useSearchParams } from "react-router"
 import { PageHeader } from "~/components/common/page-header"
 import { Badge } from "~/components/ui/badge"
@@ -9,6 +9,11 @@ import { Input } from "~/components/ui/input"
 import { Label } from "~/components/ui/label"
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "~/components/ui/select"
 import { Combobox } from "~/components/common/combobox"
+import { WarehousePicker } from "~/components/common/pickers/warehouse-picker"
+import { RackPicker } from "~/components/common/pickers/rack-picker"
+import { ItemPicker } from "~/components/common/pickers/item-picker"
+import { OperatorPicker } from "~/components/common/pickers/operator-picker"
+import { SlotPicker } from "~/components/common/pickers/slot-picker"
 import {
   Pagination,
   PaginationContent,
@@ -46,10 +51,14 @@ type TxnRow = {
   txn_type: string
   occurred_at: number
   created_at: number
+  operator_id?: string | null
   operator_name: string
+  item_id?: string | null
   item_code: string
   item_name: string
+  from_slot_id?: string | null
   from_slot_code?: string | null
+  to_slot_id?: string | null
   to_slot_code?: string | null
   qty: number
   actual_qty?: number | null
@@ -104,17 +113,23 @@ type TxnListResult = {
 }
 
 export default function TxnsPage() {
+  const [searchParams] = useSearchParams()
   const [rows, setRows] = useState<TxnRow[]>([])
   const [loading, setLoading] = useState(false)
   const [keyword, setKeyword] = useState("")
-  const [typeFilter, setTypeFilter] = useState("all")
-  const [warehouseFilter, setWarehouseFilter] = useState("all")
-  const [rackFilter, setRackFilter] = useState("all")
-  const [slotFilter, setSlotFilter] = useState("all")
-  const [itemFilter, setItemFilter] = useState("all")
-  const [operatorFilter, setOperatorFilter] = useState("all")
-  const [startDate, setStartDate] = useState("")
-  const [endDate, setEndDate] = useState("")
+  const [typeFilter, setTypeFilter] = useState("")
+  const [rackFilter, setRackFilter] = useState(searchParams.get("rack_id") || "")
+  const [slotFilter, setSlotFilter] = useState(searchParams.get("slot_id") || "")
+  const [itemFilter, setItemFilter] = useState(searchParams.get("item_id") || "")
+  const [operatorIdFilter, setOperatorIdFilter] = useState(searchParams.get("operator_id") || "")
+  const [warehouseIdFilter, setWarehouseIdFilter] = useState(searchParams.get("warehouse_id") || "")
+
+  const formatDate = (d: Date) => d.toISOString().slice(0, 10)
+  const today = new Date()
+  const defaultEndDate = formatDate(today)
+  const defaultStartDate = formatDate(new Date(today.getTime() - 6 * 24 * 60 * 60 * 1000))
+  const [startDate, setStartDate] = useState<string>(defaultStartDate)
+  const [endDate, setEndDate] = useState<string>(defaultEndDate)
   const [pageIndex, setPageIndex] = useState(1)
   const [pageSize] = useState(20)
   const [total, setTotal] = useState(0)
@@ -126,8 +141,6 @@ export default function TxnsPage() {
   const [txnPhotoLoading, setTxnPhotoLoading] = useState(false)
   const [txnPhotoUrls, setTxnPhotoUrls] = useState<Record<string, string>>({})
   const [storageRoot, setStorageRoot] = useState("")
-  const [operators, setOperators] = useState<OperatorRow[]>([])
-  const [searchParams] = useSearchParams()
   const actorOperatorId = (getSession() as any)?.actor_operator_id || ""
   const reversalForm = useForm<ReversalFormValues>({
     defaultValues: {
@@ -145,7 +158,7 @@ export default function TxnsPage() {
       typeFilter?: string
       itemFilter?: string
       slotFilter?: string
-      warehouseFilter?: string
+      warehouseIdFilter?: string
       rackFilter?: string
       operatorFilter?: string
       startDate?: string
@@ -156,9 +169,8 @@ export default function TxnsPage() {
     const nextType = overrides?.typeFilter ?? typeFilter
     const nextItem = overrides?.itemFilter ?? itemFilter
     const nextSlot = overrides?.slotFilter ?? slotFilter
-    const nextWarehouse = overrides?.warehouseFilter ?? warehouseFilter
     const nextRack = overrides?.rackFilter ?? rackFilter
-    const nextOperator = overrides?.operatorFilter ?? operatorFilter
+    const nextOperator = overrides?.operatorFilter ?? operatorIdFilter
     const nextStartDate = overrides?.startDate ?? startDate
     const nextEndDate = overrides?.endDate ?? endDate
     const startAt = nextStartDate
@@ -171,14 +183,13 @@ export default function TxnsPage() {
     try {
       const result = await tauriInvoke<TxnListResult>("list_txns", {
         input: {
-          actor_operator_id: actorOperatorId,
-          txn_type: nextType === "all" ? undefined : nextType,
+          txn_type: nextType === "" ? undefined : nextType,
           keyword: nextKeyword || undefined,
-          item_code: nextItem === "all" ? undefined : nextItem,
-          slot_code: nextSlot === "all" ? undefined : nextSlot,
-          warehouse_code: nextWarehouse === "all" ? undefined : nextWarehouse,
-          rack_code: nextRack === "all" ? undefined : nextRack,
-          operator_name: nextOperator === "all" ? undefined : nextOperator,
+          item_id: nextItem === "" ? undefined : nextItem,
+          slot_id: nextSlot === "" ? undefined : nextSlot,
+          warehouse_id: warehouseIdFilter === "" ? undefined : warehouseIdFilter,
+          rack_id: nextRack === "" ? undefined : nextRack,
+          operator_id: nextOperator === "" ? undefined : nextOperator,
           start_at: startAt,
           end_at: endAt,
           page_index: page,
@@ -199,55 +210,6 @@ export default function TxnsPage() {
     fetchTxns(pageIndex)
   }, [pageIndex])
 
-  useEffect(() => {
-    const itemParam = searchParams.get("item_code")
-    const slotParam = searchParams.get("slot_code")
-    const warehouseParam = searchParams.get("warehouse_code")
-    const rackParam = searchParams.get("rack_code")
-    const operatorParam = searchParams.get("operator_name")
-    if (itemParam) {
-      setItemFilter(itemParam)
-    }
-    if (warehouseParam) {
-      setWarehouseFilter(warehouseParam)
-    }
-    if (rackParam) {
-      setRackFilter(rackParam)
-    }
-    if (slotParam) {
-      setSlotFilter(slotParam)
-    }
-    if (operatorParam) {
-      setOperatorFilter(operatorParam)
-    }
-    if (itemParam || warehouseParam || rackParam || slotParam || operatorParam) {
-      setPageIndex(1)
-      void fetchTxns(1, {
-        itemFilter: itemParam ?? itemFilter,
-        slotFilter: slotParam ?? slotFilter,
-        warehouseFilter: warehouseParam ?? warehouseFilter,
-        rackFilter: rackParam ?? rackFilter,
-        operatorFilter: operatorParam ?? operatorFilter,
-      })
-    }
-  }, [searchParams])
-
-  useEffect(() => {
-    tauriInvoke<OperatorListResult>("list_operators", {
-      query: {
-        actor_operator_id: actorOperatorId,
-        page_index: 1,
-        page_size: 2000,
-      },
-    })
-      .then((result) => {
-        setOperators(result.items)
-      })
-      .catch(() => {
-        setOperators([])
-      })
-  }, [actorOperatorId])
-
   const openDetail = (row: TxnRow) => {
     setActiveRow(row)
     setDetailOpen(true)
@@ -257,108 +219,6 @@ export default function TxnsPage() {
     () => rows.find((row) => row.id === selectedTxnId) || null,
     [rows, selectedTxnId]
   )
-
-  const getSlotCodes = (row: TxnRow) =>
-    [row.from_slot_code, row.to_slot_code].filter(Boolean) as string[]
-  const extractWarehouseCode = (slotCode: string) => {
-    const parts = slotCode.split("-")
-    return parts.find((part) => part.startsWith("W")) || ""
-  }
-  const extractRackCode = (slotCode: string) => {
-    const parts = slotCode.split("-")
-    return parts.find((part) => part.startsWith("R")) || ""
-  }
-
-  const warehouseOptions = Array.from(
-    new Set(
-      rows
-        .flatMap((row) => getSlotCodes(row).map(extractWarehouseCode))
-        .filter(Boolean)
-    )
-  )
-  const rackOptions = Array.from(
-    new Set(
-      rows
-        .flatMap((row) => getSlotCodes(row).map(extractRackCode))
-        .filter(Boolean)
-    )
-  )
-  const slotOptions = Array.from(
-    new Set(rows.flatMap((row) => getSlotCodes(row)))
-  )
-  const itemOptions = Array.from(
-    new Map(rows.map((row) => [row.item_code, row.item_name])).entries()
-  )
-  const operatorOptions = Array.from(
-    new Set(rows.map((row) => row.operator_name).filter(Boolean))
-  )
-
-  const filteredRackOptions =
-    warehouseFilter === "all"
-      ? rackOptions
-      : rackOptions.filter((code) => code.startsWith(`R`))
-
-  const filteredSlotOptions =
-    warehouseFilter === "all" && rackFilter === "all"
-      ? slotOptions
-      : slotOptions.filter((slotCode) => {
-          if (warehouseFilter !== "all" && !slotCode.includes(warehouseFilter)) {
-            return false
-          }
-          if (rackFilter !== "all" && !slotCode.includes(`-${rackFilter}-`)) {
-            return false
-          }
-          return true
-        })
-  const slotOptionsForSelect =
-    slotFilter !== "all" && !filteredSlotOptions.includes(slotFilter)
-      ? [slotFilter, ...filteredSlotOptions]
-      : filteredSlotOptions
-
-  useEffect(() => {
-    if (warehouseFilter !== "all") {
-      const hasRack = rackOptions.includes(rackFilter)
-      if (!hasRack) {
-        setRackFilter("all")
-      }
-    }
-    setSlotFilter("all")
-  }, [warehouseFilter])
-
-  useEffect(() => {
-    if (rackFilter !== "all") {
-      const hasSlot = filteredSlotOptions.includes(slotFilter)
-      if (!hasSlot) {
-        setSlotFilter("all")
-      }
-    }
-  }, [rackFilter, filteredSlotOptions, slotFilter])
-
-  const filteredRows = rows.filter((row) => {
-    const slots = getSlotCodes(row)
-    const warehouseCodes = slots.map(extractWarehouseCode).filter(Boolean)
-    const rackCodes = slots.map(extractRackCode).filter(Boolean)
-    const matchesWarehouse =
-      warehouseFilter === "all" || warehouseCodes.includes(warehouseFilter)
-    const matchesRack =
-      rackFilter === "all" || rackCodes.includes(rackFilter)
-    const matchesSlot = slotFilter === "all" || slots.includes(slotFilter)
-    const matchesItem = itemFilter === "all" || row.item_code === itemFilter
-    const matchesOperator =
-      operatorFilter === "all" || row.operator_name === operatorFilter
-    return (
-      matchesWarehouse &&
-      matchesRack &&
-      matchesSlot &&
-      matchesItem &&
-      matchesOperator
-    )
-  })
-
-  const parseTime = (value: string) => {
-    if (!value) return Math.floor(Date.now() / 1000)
-    return Math.floor(new Date(value).getTime() / 1000)
-  }
 
   const buildPhotoPath = (filePath: string) => {
     if (!storageRoot) return ""
@@ -446,56 +306,6 @@ export default function TxnsPage() {
   }
 
   const reversalPhotos = usePhotoPicker()
-
-  const submitReversal = async (values: ReversalFormValues) => {
-    try {
-      const txnNo = await tauriInvoke<string>("reverse_txn", {
-        input: {
-          txn_no: values.txn_no,
-          occurred_at: parseTime(values.occurred_at),
-          operator_id: (values as any).operator_id || undefined,
-          note: values.note || null,
-        },
-      })
-        if (reversalPhotos.selectedPaths.length > 0) {
-        await tauriInvoke("add_photos", {
-          input: {
-            photo_type: "txn",
-            data_id: txnNo,
-            src_paths: reversalPhotos.selectedPaths,
-            actor_operator_id: actorOperatorId,
-          },
-        })
-        toast.success("图片上传成功")
-        reversalPhotos.reset()
-      }
-      toast.success("冲正成功")
-      setReversalOpen(false)
-      setSelectedTxnId("")
-      reversalForm.reset({
-        txn_no: "",
-        occurred_at: "",
-        operator_id: actorOperatorId,
-        note: "",
-      })
-      await fetchTxns(1)
-      return true
-    } catch (err) {
-      const message = err instanceof Error ? err.message : "冲正失败"
-      toast.error(message)
-      return false
-    }
-  }
-
-  const submitReversalFromForm = async () => {
-    let ok = false
-    await reversalForm.handleSubmit(async (values) => {
-      ok = await submitReversal(values)
-    })()
-    return ok
-  }
-
-  const beforeReversalSubmit = () => reversalForm.trigger()
 
   useEffect(() => {
     tauriInvoke<SettingsDto>("get_settings")
@@ -635,7 +445,7 @@ export default function TxnsPage() {
       />
 
       <div className="flex flex-wrap items-end gap-3 rounded-2xl border border-slate-200/70 bg-slate-50/70 p-4">
-        <div className="min-w-[180px] flex-1 space-y-2">
+        <div className="min-w-[140px] w-[140px] max-w-[140px] flex-1 space-y-2">
           <Label>搜索</Label>
           <Input
             placeholder="流水号/物品/记录人"
@@ -643,7 +453,46 @@ export default function TxnsPage() {
             onChange={(event) => setKeyword(event.target.value)}
           />
         </div>
-        <div className="min-w-[70px] space-y-2">
+        <div className="min-w-[140px] max-w-[140px] space-y-2">
+          <Label>开始时间</Label>
+          <DatePicker value={startDate} onChange={setStartDate} />
+        </div>
+        <div className="min-w-[140px] max-w-[140px] space-y-2">
+          <Label>结束时间</Label>
+          <DatePicker value={endDate} onChange={setEndDate} />
+        </div>
+        <div className="min-w-[180px] max-w-[180px] space-y-2">
+          <Label>仓库</Label>
+          <WarehousePicker
+            value={warehouseIdFilter}
+            onChange={(nextId) => {
+              setWarehouseIdFilter(nextId)
+            }}
+            placeholder="全部"
+          />
+        </div>
+        <div className="min-w-[180px] max-w-[180px] space-y-2">
+          <Label>货架</Label>
+            <RackPicker
+              warehouseId={warehouseIdFilter}
+              value={rackFilter}
+              onChange={setRackFilter}
+              placeholder="全部"
+            />
+        </div>
+        <div className="min-w-[180px] max-w-[180px] space-y-2">
+          <Label>库位</Label>
+          <SlotPicker value={slotFilter} warehouseId={warehouseIdFilter}  rackId={rackFilter} onChange={(v) => setSlotFilter(v || "")} placeholder="全部" />
+        </div>
+        <div className="min-w-[180px] max-w-[180px] space-y-2">
+          <Label>物品</Label>
+          <ItemPicker value={itemFilter} onChange={(v) => setItemFilter(v || "")} placeholder="全部" />
+        </div>
+        <div className="min-w-[180px] max-w-[180px] space-y-2">
+          <Label>记录人</Label>
+          <OperatorPicker value={operatorIdFilter} onChange={(v) => setOperatorIdFilter(v || "")} placeholder="全部" />
+        </div>
+        <div className="flex-1 space-y-2">
           <Label>类型</Label>
           <Select value={typeFilter} onValueChange={setTypeFilter}>
             <SelectTrigger>
@@ -659,92 +508,8 @@ export default function TxnsPage() {
             </SelectContent>
           </Select>
         </div>
-        <div className="min-w-[140px] space-y-2">
-          <Label>开始时间</Label>
-          <DatePicker value={startDate} onChange={setStartDate} />
-        </div>
-        <div className="min-w-[140px] space-y-2">
-          <Label>结束时间</Label>
-          <DatePicker value={endDate} onChange={setEndDate} />
-        </div>
-        <div className="min-w-[180px] space-y-2">
-          <Label>仓库</Label>
-          <Combobox
-            value={warehouseFilter}
-            onChange={setWarehouseFilter}
-            placeholder="全部"
-            options={[
-              { value: "all", label: "全部" },
-              ...warehouseOptions.map((code) => ({
-                value: code,
-                label: code,
-              })),
-            ]}
-          />
-        </div>
-        <div className="min-w-[180px] space-y-2">
-          <Label>货架</Label>
-          <Combobox
-            value={rackFilter}
-            onChange={setRackFilter}
-            placeholder="全部"
-            options={[
-              { value: "all", label: "全部" },
-              ...filteredRackOptions.map((code) => ({
-                value: code,
-                label: code,
-              })),
-            ]}
-          />
-        </div>
-        <div className="min-w-[180px] space-y-2">
-          <Label>库位</Label>
-          <Combobox
-            value={slotFilter}
-            onChange={setSlotFilter}
-            placeholder="全部"
-            options={[
-              { value: "all", label: "全部" },
-              ...slotOptionsForSelect.map((code) => ({
-                value: code,
-                label: code,
-              })),
-            ]}
-          />
-        </div>
-        <div className="min-w-[180px] space-y-2">
-          <Label>物品</Label>
-          <Combobox
-            value={itemFilter}
-            onChange={setItemFilter}
-            placeholder="全部"
-            options={[
-              { value: "all", label: "全部" },
-              ...itemOptions.map(([code, name]) => ({
-                value: code,
-                label: `${code}·${name}`,
-                searchLabel: `${code} ${name}`,
-              })),
-            ]}
-          />
-        </div>
-        <div className="min-w-[120px] space-y-2">
-          <Label>记录人</Label>
-          <Combobox
-            value={operatorFilter}
-            onChange={setOperatorFilter}
-            placeholder="全部"
-            options={[
-              { value: "all", label: "全部" },
-              ...operatorOptions.map((name) => ({
-                value: name,
-                label: name,
-              })),
-            ]}
-          />
-        </div>
         <Button
-          variant="secondary"
+          variant="outline"
           onClick={() => {
             setPageIndex(1)
             fetchTxns(1)
@@ -753,19 +518,19 @@ export default function TxnsPage() {
           筛选
         </Button>
         <Button
-          variant="outline"
-          onClick={() => {
+          variant="secondary"
+            onClick={() => {
             setKeyword("")
-            setTypeFilter("all")
-            setStartDate("")
-            setEndDate("")
-            setWarehouseFilter("all")
-            setRackFilter("all")
-            setSlotFilter("all")
-            setItemFilter("all")
-            setOperatorFilter("all")
+            setTypeFilter("")
+            setStartDate(defaultStartDate)
+            setEndDate(defaultEndDate)
+            setWarehouseIdFilter("")
+            setRackFilter("")
+            setSlotFilter("")
+            setItemFilter("")
+            setOperatorIdFilter("")
             setPageIndex(1)
-            fetchTxns(1)
+            void fetchTxns(1, { startDate: defaultStartDate, endDate: defaultEndDate })
           }}
         >
           重置
@@ -789,7 +554,7 @@ export default function TxnsPage() {
             </TableRow>
           </TableHeader>
           <TableBody>
-              {filteredRows.map((row) => (
+              {rows.map((row) => (
                 <TableRow key={row.id}>
                 <TableCell className="text-center">
                   <input
@@ -988,14 +753,7 @@ export default function TxnsPage() {
             reversalPhotos.reset()
           }
         }}
-        reversalForm={reversalForm}
-        operators={operators}
-        photoPaths={reversalPhotos.selectedPaths}
-        photoPreviewUrls={reversalPhotos.previewUrls}
-        onPickPhotos={reversalPhotos.handlePick}
-        onRemovePhoto={reversalPhotos.handleRemove}
-        onSubmit={submitReversalFromForm}
-        onBeforeSubmit={beforeReversalSubmit}
+        form={reversalForm}
       />
     </div>
   )

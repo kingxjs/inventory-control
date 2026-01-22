@@ -25,10 +25,15 @@ pub async fn list_stock_by_slot(
   pool: &SqlitePool,
   page_index: i64,
   page_size: i64,
+  warehouse_id: Option<String>,
+  rack_id: Option<String>,
+  slot_id: Option<String>,
+  item_id: Option<String>,
+  operator_id: Option<String>,
 ) -> Result<StockBySlotResult, AppError> {
   let (page_index, page_size) = normalize_page(page_index, page_size)?;
-  let total = stock_query_repo::count_stock_by_slot(pool).await?;
-  let items = stock_query_repo::list_stock_by_slot(pool, page_index, page_size).await?;
+  let total = stock_query_repo::count_stock_by_slot_filtered(pool, warehouse_id.clone(), rack_id.clone(), slot_id.clone(), item_id.clone(), operator_id.clone()).await?;
+  let items = stock_query_repo::list_stock_by_slot(pool, page_index, page_size, warehouse_id, rack_id, slot_id, item_id, operator_id).await?;
   Ok(StockBySlotResult { items, total })
 }
 
@@ -36,10 +41,15 @@ pub async fn list_stock_by_item(
   pool: &SqlitePool,
   page_index: i64,
   page_size: i64,
+  warehouse_id: Option<String>,
+  rack_id: Option<String>,
+  slot_id: Option<String>,
+  item_id: Option<String>,
+  operator_id: Option<String>,
 ) -> Result<StockByItemResult, AppError> {
   let (page_index, page_size) = normalize_page(page_index, page_size)?;
-  let total = stock_query_repo::count_stock_by_item(pool).await?;
-  let items = stock_query_repo::list_stock_by_item(pool, page_index, page_size).await?;
+  let total = stock_query_repo::count_stock_by_item_filtered(pool, warehouse_id.clone(), rack_id.clone(), slot_id.clone(), item_id.clone(), operator_id.clone()).await?;
+  let items = stock_query_repo::list_stock_by_item_filtered(pool, page_index, page_size, warehouse_id, rack_id, slot_id, item_id, operator_id).await?;
   Ok(StockByItemResult { items, total })
 }
 

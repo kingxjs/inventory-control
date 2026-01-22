@@ -21,6 +21,7 @@ pub struct SlotRow {
   pub rack_id: String,
   pub level_no: i64,
   pub slot_no: i64,
+  pub warehouse_id: Option<String>,
   pub code: String,
   pub status: String,
   pub created_at: i64,
@@ -30,16 +31,44 @@ pub async fn list_racks(
   pool: &SqlitePool,
   page_index: i64,
   page_size: i64,
+  keyword: Option<String>,
+  warehouse_id: Option<String>,
 ) -> Result<Vec<RackRow>, AppError> {
   let offset = (page_index - 1) * page_size;
-  let rows = sqlx::query(
-    "SELECT id, code, name, warehouse_id, location, status, level_count, slots_per_level, created_at \
-     FROM rack ORDER BY created_at DESC LIMIT ? OFFSET ?",
-  )
-  .bind(page_size)
-  .bind(offset)
-  .fetch_all(pool)
-  .await?;
+  let rows = if let Some(k) = keyword.as_ref().map(|s| s.trim()).filter(|s| !s.is_empty()) {
+    let pattern = format!("%{}%", k);
+    let mut builder = sqlx::QueryBuilder::new("SELECT id, code, name, warehouse_id, location, status, level_count, slots_per_level, created_at FROM rack");
+    if let Some(wid) = warehouse_id.as_ref().map(|s| s.trim()).filter(|s| !s.is_empty()) {
+      builder.push(" WHERE warehouse_id = ");
+      builder.push_bind(wid.to_string());
+      builder.push(" AND (code LIKE ");
+      builder.push_bind(pattern.clone());
+      builder.push(" OR name LIKE ");
+      builder.push_bind(pattern.clone());
+      builder.push(") ORDER BY created_at DESC LIMIT ");
+    } else {
+      builder.push(" WHERE (code LIKE ");
+      builder.push_bind(pattern.clone());
+      builder.push(" OR name LIKE ");
+      builder.push_bind(pattern.clone());
+      builder.push(") ORDER BY created_at DESC LIMIT ");
+    }
+    builder.push_bind(page_size);
+    builder.push(" OFFSET ");
+    builder.push_bind(offset);
+    builder.build().fetch_all(pool).await?
+  } else {
+    let mut builder = sqlx::QueryBuilder::new("SELECT id, code, name, warehouse_id, location, status, level_count, slots_per_level, created_at FROM rack");
+    if let Some(wid) = warehouse_id.as_ref().map(|s| s.trim()).filter(|s| !s.is_empty()) {
+      builder.push(" WHERE warehouse_id = ");
+      builder.push_bind(wid.to_string());
+    }
+    builder.push(" ORDER BY created_at DESC LIMIT ");
+    builder.push_bind(page_size);
+    builder.push(" OFFSET ");
+    builder.push_bind(offset);
+    builder.build().fetch_all(pool).await?
+  };
 
   let items = rows
     .into_iter()
@@ -59,11 +88,37 @@ pub async fn list_racks(
   Ok(items)
 }
 
-pub async fn count_racks(pool: &SqlitePool) -> Result<i64, AppError> {
-  let (count,): (i64,) = sqlx::query_as("SELECT COUNT(1) FROM rack")
-    .fetch_one(pool)
-    .await?;
-  Ok(count)
+pub async fn count_racks(pool: &SqlitePool, keyword: Option<String>, warehouse_id: Option<String>) -> Result<i64, AppError> {
+  if let Some(k) = keyword.as_ref().map(|s| s.trim()).filter(|s| !s.is_empty()) {
+    let pattern = format!("%{}%", k);
+    if let Some(wid) = warehouse_id.as_ref().map(|s| s.trim()).filter(|s| !s.is_empty()) {
+      let (count,): (i64,) = sqlx::query_as("SELECT COUNT(1) FROM rack WHERE warehouse_id = ? AND (code LIKE ? OR name LIKE ?)")
+        .bind(wid)
+        .bind(pattern.clone())
+        .bind(pattern)
+        .fetch_one(pool)
+        .await?;
+      Ok(count)
+    } else {
+      let (count,): (i64,) = sqlx::query_as("SELECT COUNT(1) FROM rack WHERE code LIKE ? OR name LIKE ?")
+        .bind(pattern.clone())
+        .bind(pattern)
+        .fetch_one(pool)
+        .await?;
+      Ok(count)
+    }
+  } else if let Some(wid) = warehouse_id.as_ref().map(|s| s.trim()).filter(|s| !s.is_empty()) {
+    let (count,): (i64,) = sqlx::query_as("SELECT COUNT(1) FROM rack WHERE warehouse_id = ?")
+      .bind(wid)
+      .fetch_one(pool)
+      .await?;
+    Ok(count)
+  } else {
+    let (count,): (i64,) = sqlx::query_as("SELECT COUNT(1) FROM rack")
+      .fetch_one(pool)
+      .await?;
+    Ok(count)
+  }
 }
 
 pub async fn get_rack_by_code(pool: &SqlitePool, code: &str) -> Result<Option<RackRow>, AppError> {
@@ -245,11 +300,12 @@ pub async fn insert_slots(pool: &SqlitePool, slots: Vec<SlotRow>) -> Result<(), 
 
   for slot in slots {
     sqlx::query(
-      "INSERT INTO slot (id, rack_id, level_no, slot_no, code, status, created_at) \
-       VALUES (?, ?, ?, ?, ?, ?, ?)",
+      "INSERT INTO slot (id, rack_id, warehouse_id, level_no, slot_no, code, status, created_at) \
+       VALUES (?, ?, ?, ?, ?, ?, ?, ?)",
     )
     .bind(slot.id)
     .bind(slot.rack_id)
+    .bind(slot.warehouse_id)
     .bind(slot.level_no)
     .bind(slot.slot_no)
     .bind(slot.code)
@@ -265,27 +321,37 @@ pub async fn insert_slots(pool: &SqlitePool, slots: Vec<SlotRow>) -> Result<(), 
 
 pub async fn list_slots(
   pool: &SqlitePool,
-  rack_id: &str,
+  rack_id: Option<String>,
+  warehouse_id: Option<String>,
   level_no: Option<i64>,
 ) -> Result<Vec<SlotRow>, AppError> {
-  let rows = if let Some(level_no) = level_no {
-    sqlx::query(
-      "SELECT id, rack_id, level_no, slot_no, code, status, created_at \
-       FROM slot WHERE rack_id = ? AND level_no = ? ORDER BY level_no, slot_no",
-    )
-    .bind(rack_id)
-    .bind(level_no)
-    .fetch_all(pool)
-    .await?
-  } else {
-    sqlx::query(
-      "SELECT id, rack_id, level_no, slot_no, code, status, created_at \
-       FROM slot WHERE rack_id = ? ORDER BY level_no, slot_no",
-    )
-    .bind(rack_id)
-    .fetch_all(pool)
-    .await?
-  };
+  // Build dynamic query based on optional rack_id / warehouse_id / level_no
+  let mut builder = sqlx::QueryBuilder::new("SELECT id, rack_id, warehouse_id, level_no, slot_no, code, status, created_at FROM slot");
+  let mut has_where = false;
+  if let Some(wid) = warehouse_id.as_ref().map(|s| s.trim()).filter(|s| !s.is_empty()) {
+    builder.push(" WHERE warehouse_id = ");
+    builder.push_bind(wid.to_string());
+    has_where = true;
+  }
+  if let Some(rid) = rack_id.as_ref().map(|s| s.trim()).filter(|s| !s.is_empty()) {
+    if has_where {
+      builder.push(" AND rack_id = ");
+    } else {
+      builder.push(" WHERE rack_id = ");
+      has_where = true;
+    }
+    builder.push_bind(rid.to_string());
+  }
+  if let Some(level) = level_no {
+    if has_where {
+      builder.push(" AND level_no = ");
+    } else {
+      builder.push(" WHERE level_no = ");
+    }
+    builder.push_bind(level);
+  }
+  builder.push(" ORDER BY level_no, slot_no");
+  let rows = builder.build().fetch_all(pool).await?;
 
   let items = rows
     .into_iter()
@@ -294,6 +360,7 @@ pub async fn list_slots(
       rack_id: row.get("rack_id"),
       level_no: row.get("level_no"),
       slot_no: row.get("slot_no"),
+      warehouse_id: row.get("warehouse_id"),
       code: row.get("code"),
       status: row.get("status"),
       created_at: row.get("created_at"),
@@ -308,9 +375,32 @@ pub async fn get_slot_by_code(
   code: &str,
 ) -> Result<Option<SlotRow>, AppError> {
   let row = sqlx::query(
-    "SELECT id, rack_id, level_no, slot_no, code, status, created_at FROM slot WHERE code = ?",
+    "SELECT id, rack_id, warehouse_id, level_no, slot_no, code, status, created_at FROM slot WHERE code = ?",
   )
   .bind(code)
+  .fetch_optional(pool)
+  .await?;
+
+    Ok(row.map(|row| SlotRow {
+      id: row.get("id"),
+      rack_id: row.get("rack_id"),
+      level_no: row.get("level_no"),
+      slot_no: row.get("slot_no"),
+      warehouse_id: row.get("warehouse_id"),
+      code: row.get("code"),
+      status: row.get("status"),
+      created_at: row.get("created_at"),
+    }))
+}
+
+pub async fn get_slot_by_id(
+  pool: &SqlitePool,
+  id: &str,
+) -> Result<Option<SlotRow>, AppError> {
+  let row = sqlx::query(
+    "SELECT id, rack_id, level_no, slot_no, warehouse_id, code, status, created_at FROM slot WHERE id = ?",
+  )
+  .bind(id)
   .fetch_optional(pool)
   .await?;
 
@@ -319,6 +409,7 @@ pub async fn get_slot_by_code(
     rack_id: row.get("rack_id"),
     level_no: row.get("level_no"),
     slot_no: row.get("slot_no"),
+    warehouse_id: row.get("warehouse_id"),
     code: row.get("code"),
     status: row.get("status"),
     created_at: row.get("created_at"),
