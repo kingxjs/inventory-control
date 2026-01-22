@@ -264,6 +264,8 @@ jobs:
           GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
           VERSION: ${{ steps.get_version.outputs.version }}
         run: |
+          git config user.name "github-actions[bot]"
+          git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
           gh release delete "v$VERSION" --yes || true
           git push origin ":refs/tags/v$VERSION" || true
           git tag -d "v$VERSION" || true
