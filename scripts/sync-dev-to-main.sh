@@ -10,10 +10,12 @@ REMOTE=origin
 MAIN=main
 TARGET=dev
 DRY_RUN=false
+REBASE=false
+FORCE=false
 
 usage() {
   cat <<EOF
-Usage: $0 [--rebase] [--force] [--dry-run] [--remote <name>] [--main <branch>] [--target <branch>]
+Usage: $0 [--dry-run] [--remote <name>] [--main <branch>] [--target <branch>]
 
 Options:
   --dry-run       Show commands but don't execute
