@@ -294,7 +294,7 @@ export default function StockPage() {
           rack_id: rackFilter || undefined,
           slot_id: slotIdFilter || undefined,
           item_id: itemFilter || undefined,
-          operator_id: operatorFilter || undefined
+          operator_id: operatorFilter || undefined,
         },
       });
       // 用 AlertDialog 提示导出成功，并提供打开文件夹按钮
@@ -380,10 +380,65 @@ export default function StockPage() {
   };
   return (
     <div className="space-y-6">
-      <CommonDialog title="入库" description="物品入库" open={inboundOpen} onOpenChange={setInboundOpen} content={<InboundForm onClose={() => setInboundOpen(false)} />} />
-      <CommonDialog title="出库" description="物品出库" open={outboundOpen} onOpenChange={setOutboundOpen} content={<OutboundForm form={outboundForm} onClose={() => setOutboundOpen(false)} />} />
-      <CommonDialog title="移库" description="物品移库" open={moveOpen} onOpenChange={setMoveOpen} content={<MoveForm form={moveForm} onClose={() => setMoveOpen(false)} />} />
-      <CommonDialog title="盘点" description="盘点物品" open={countOpen} onOpenChange={setCountOpen} content={<CountForm form={countForm} onClose={() => setCountOpen(false)} />} />
+      <CommonDialog
+        title="入库"
+        description="物品入库"
+        open={inboundOpen}
+        onOpenChange={setInboundOpen}
+        content={
+          <InboundForm
+            onClose={() => {
+              setInboundOpen(false);
+              fetchStock(1, 1);
+            }}
+          />
+        }
+      />
+      <CommonDialog
+        title="出库"
+        description="物品出库"
+        open={outboundOpen}
+        onOpenChange={setOutboundOpen}
+        content={
+          <OutboundForm
+            form={outboundForm}
+            onClose={() => {
+              setOutboundOpen(false);
+              fetchStock(1, 1);
+            }}
+          />
+        }
+      />
+      <CommonDialog
+        title="移库"
+        description="物品移库"
+        open={moveOpen}
+        onOpenChange={setMoveOpen}
+        content={
+          <MoveForm
+            form={moveForm}
+            onClose={() => {
+              setMoveOpen(false);
+              fetchStock(1, 1);
+            }}
+          />
+        }
+      />
+      <CommonDialog
+        title="盘点"
+        description="盘点物品"
+        open={countOpen}
+        onOpenChange={setCountOpen}
+        content={
+          <CountForm
+            form={countForm}
+            onClose={() => {
+              setCountOpen(false);
+              fetchStock(1, 1);
+            }}
+          />
+        }
+      />
       <AlertDialog
         open={inboundConfirmOpen}
         onOpenChange={(next) => {
