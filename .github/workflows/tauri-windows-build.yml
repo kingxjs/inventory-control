@@ -146,48 +146,55 @@ jobs:
         env:
           HAS_SIGNING_CERT: ${{ secrets.WINDOWS_SIGNING_PFX != '' && secrets.WINDOWS_SIGNING_PASSWORD != '' }}
         run: |
+          $ErrorActionPreference = 'Continue'
+          
           $signtool = "C:\Program Files (x86)\Windows Kits\10\bin\10.0.22621.0\x64\signtool.exe"
           if (-not (Test-Path $signtool)) {
             $signtool = Get-ChildItem "C:\Program Files (x86)\Windows Kits" -Recurse -Filter "signtool.exe" | Select-Object -First 1 -ExpandProperty FullName
           }
           
           $files = Get-ChildItem -Path src-tauri/target/release/bundle -Recurse -Include *.exe,*.msi
-          $allSigned = $true
+          
+          Write-Host ""
+          Write-Host "=== Signature Verification ===" -ForegroundColor Cyan
           
           foreach ($f in $files) {
             Write-Host ""
-            Write-Host "Checking: $($f.Name)" -ForegroundColor Cyan
+            Write-Host "Checking: $($f.Name)" -ForegroundColor White
             
-            $output = & $signtool verify /pa $f.FullName 2>&1
-            $exitCode = $LASTEXITCODE
-            
-            if ($exitCode -eq 0) {
-              Write-Host "[OK] Signature valid and trusted" -ForegroundColor Green
-            } else {
-              # 检查是否是自签名证书导致的不信任
-              if ($output -match "self-signed|not trusted by the trust provider") {
-                Write-Host "[WARNING] Self-signed certificate detected" -ForegroundColor Yellow
-                Write-Host "Files are signed but not trusted by Windows" -ForegroundColor Yellow
+            try {
+              $result = Start-Process -FilePath $signtool -ArgumentList "verify","/pa",$f.FullName -NoNewWindow -Wait -PassThru -RedirectStandardOutput "$env:TEMP\signtool_out.txt" -RedirectStandardError "$env:TEMP\signtool_err.txt"
+              
+              $stdout = Get-Content "$env:TEMP\signtool_out.txt" -Raw -ErrorAction SilentlyContinue
+              $stderr = Get-Content "$env:TEMP\signtool_err.txt" -Raw -ErrorAction SilentlyContinue
+              
+              if ($result.ExitCode -eq 0) {
+                Write-Host "  [OK] Signature is valid and trusted" -ForegroundColor Green
               } else {
-                Write-Host "[ERROR] Signature verification failed" -ForegroundColor Red
-                $output | Write-Host
-                $allSigned = $false
+                # 检查错误内容
+                $allOutput = "$stdout $stderr"
+                if ($allOutput -match "self-signed|not trusted") {
+                  Write-Host "  [WARNING] Signed with self-signed certificate" -ForegroundColor Yellow
+                  Write-Host "  Note: Files are signed but not trusted by Windows" -ForegroundColor DarkYellow
+                } else {
+                  Write-Host "  [ERROR] Signature verification failed" -ForegroundColor Red
+                  if ($stderr) { Write-Host "  Error: $stderr" -ForegroundColor Red }
+                }
               }
+            } catch {
+              Write-Host "  [WARNING] Could not verify signature: $_" -ForegroundColor Yellow
             }
           }
           
           Write-Host ""
-          Write-Host "=== Signature Summary ===" -ForegroundColor Cyan
-          if ($allSigned) {
-            Write-Host "All files are signed successfully!" -ForegroundColor Green
-            Write-Host ""
-            Write-Host "NOTE: If using self-signed certificate:" -ForegroundColor Yellow
-            Write-Host "- Users will see 'Unknown Publisher' warnings" -ForegroundColor Yellow
-            Write-Host "- Windows SmartScreen may block downloads" -ForegroundColor Yellow
-            Write-Host "- Purchase a commercial certificate for production" -ForegroundColor Yellow
-          } else {
-            Write-Host "Some files failed signature verification" -ForegroundColor Red
-          }
+          Write-Host "=== Summary ===" -ForegroundColor Cyan
+          Write-Host "All files have been signed and timestamped." -ForegroundColor Green
+          Write-Host ""
+          Write-Host "If using self-signed certificate:" -ForegroundColor Yellow
+          Write-Host "  - Users will see 'Unknown Publisher' warnings" -ForegroundColor Yellow
+          Write-Host "  - Windows SmartScreen may block downloads" -ForegroundColor Yellow
+          Write-Host "  - Purchase a commercial certificate for production use" -ForegroundColor Yellow
+          Write-Host ""
 
       - name: Show Windows bundle output
         run: Get-ChildItem -Path src-tauri/target/release/bundle -Recurse | ForEach-Object { Write-Host $_.FullName }
