@@ -156,9 +156,9 @@ jobs:
             Write-Host "Verifying signature for $($f.FullName)"
             & $signtool verify /pa /v $f.FullName
             if ($LASTEXITCODE -eq 0) {
-              Write-Host "✓ Signature verified for $($f.Name)" -ForegroundColor Green
+              Write-Host "[OK] Signature verified for $($f.Name)" -ForegroundColor Green
             } else {
-              Write-Warning "✗ Signature verification failed for $($f.Name)"
+              Write-Warning "[FAIL] Signature verification failed for $($f.Name)"
             }
           }
 
