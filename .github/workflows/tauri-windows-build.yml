@@ -48,12 +48,16 @@ jobs:
         with:
           targets: x86_64-pc-windows-msvc
       
-      # Rust 编译缓存
+      # Rust 编译缓存 - 缓存 crates.io 索引和依赖
       - name: Rust cache
         uses: Swatinem/rust-cache@v2
         with:
           workspaces: src-tauri
           cache-on-failure: true
+          # 缓存 Cargo registry 和 git 依赖
+          cache-all-crates: true
+          # 使用共享密钥加速首次构建
+          shared-key: "tauri-windows"
       
       - name: Install WiX and NSIS
         run: |
@@ -64,8 +68,10 @@ jobs:
       - name: Build Windows installers
         run: pnpm tauri build --bundles nsis msi
         env:
-          CARGO_INCREMENTAL: 1  # 启用增量编译
-          CARGO_PROFILE_RELEASE_LTO: false  # 禁用 LTO 加速编译（牺牲一点体积）
+          CARGO_INCREMENTAL: 0  # 禁用增量编译（CI 环境更快）
+          CARGO_PROFILE_RELEASE_LTO: false  # 禁用 LTO
+          CARGO_PROFILE_RELEASE_CODEGEN_UNITS: 16  # 增加代码生成单元（并行编译）
+          CARGO_NET_GIT_FETCH_WITH_CLI: true  # 使用 git CLI 加速下载
       
       - name: Decode signing certificate
         if: env.HAS_SIGNING_CERT == 'true'
@@ -150,18 +156,24 @@ jobs:
         with:
           targets: aarch64-apple-darwin,x86_64-apple-darwin
       
-      # Rust 编译缓存
+      # Rust 编译缓存 - 缓存 crates.io 索引和依赖
       - name: Rust cache
         uses: Swatinem/rust-cache@v2
         with:
           workspaces: src-tauri
           cache-on-failure: true
+          # 缓存 Cargo registry 和 git 依赖
+          cache-all-crates: true
+          # 使用共享密钥加速首次构建
+          shared-key: "tauri-macos"
       
       - name: Build macOS Universal Binary
         run: pnpm tauri build --target universal-apple-darwin
         env:
-          CARGO_INCREMENTAL: 1  # 启用增量编译
-          CARGO_PROFILE_RELEASE_LTO: false  # 禁用 LTO 加速编译
+          CARGO_INCREMENTAL: 0  # 禁用增量编译（CI 环境更快）
+          CARGO_PROFILE_RELEASE_LTO: false  # 禁用 LTO
+          CARGO_PROFILE_RELEASE_CODEGEN_UNITS: 16  # 增加代码生成单元（并行编译）
+          CARGO_NET_GIT_FETCH_WITH_CLI: true  # 使用 git CLI 加速下载
 
       - name: Show macOS bundle output
         run: ls -R src-tauri/target/universal-apple-darwin/release/bundle || true
@@ -236,13 +248,26 @@ jobs:
         run: |
           git fetch --tags
           if git rev-parse "v$VERSION" >/dev/null 2>&1; then
-            echo "Tag v$VERSION already exists, skipping"
+            echo "Tag v$VERSION already exists"
+            echo "tag_exists=true" >> $GITHUB_OUTPUT
           else
             git config user.name "github-actions[bot]"
             git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
             git tag -a "v$VERSION" -m "Release v$VERSION"
             git push origin "v$VERSION"
+            echo "tag_exists=false" >> $GITHUB_OUTPUT
           fi
+      
+      - name: Delete existing release if tag exists
+        if: steps.create_tag.outputs.tag_exists == 'true'
+        env:
+          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+          VERSION: ${{ steps.get_version.outputs.version }}
+        run: |
+          gh release delete "v$VERSION" --yes || true
+          git push origin ":refs/tags/v$VERSION" || true
+          git tag -a "v$VERSION" -m "Release v$VERSION"
+          git push origin "v$VERSION"
       
       - name: Create GitHub Release
         uses: softprops/action-gh-release@v1
@@ -252,5 +277,8 @@ jobs:
           draft: false
           prerelease: false
           files: release-files/*
+          fail_on_unmatched_files: true
+          # 如果 release 已存在则覆盖文件
+          overwrite: true
         env:
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
