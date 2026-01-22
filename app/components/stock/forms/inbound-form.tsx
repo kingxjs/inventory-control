@@ -228,7 +228,7 @@ export default function InboundForm({ onClose, form: externalForm }: Props) {
           </FormItem>
         )} />
         <ImagePicker label="图片" selectedPaths={selectedPaths} previewUrls={previewUrls} onPick={pickPhotos} onRemove={removePhoto} />
-        <div className="grid gap-1 sm:grid-cols-1">
+        <div className="grid gap-1 sm:grid-cols-1 md:col-span-2">
           <ConfirmButton className="w-full" label="提交" confirmText="确认提交？" onConfirm={async () => { await submitLocal(); }} />
         </div>
       </div>

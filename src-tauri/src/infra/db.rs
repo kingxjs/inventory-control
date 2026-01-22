@@ -54,7 +54,10 @@ pub async fn init_db(app: &AppHandle) -> Result<(SqlitePool, PathBuf), AppError>
 }
 
 async fn init_app_meta(pool: &SqlitePool, storage_root: &PathBuf) -> Result<(), AppError> {
-  let root_str = storage_root.to_string_lossy();
+  // 使用拥有所有权的 String 避免将临时值的借用传递给 SQLx（会导致借用超出作用域）
+  let root_str = storage_root.to_string_lossy().into_owned();
+  let exports_str = storage_root.join("exports").to_string_lossy().into_owned();
+  let backups_str = storage_root.join("backups").to_string_lossy().into_owned();
 
   sqlx::query("INSERT OR IGNORE INTO app_meta (k, v) VALUES (?, ?)")
     .bind("rbac_enabled")
@@ -64,7 +67,7 @@ async fn init_app_meta(pool: &SqlitePool, storage_root: &PathBuf) -> Result<(), 
 
   sqlx::query("INSERT OR IGNORE INTO app_meta (k, v) VALUES (?, ?)")
     .bind("storage_root")
-    .bind(root_str.as_ref())
+    .bind(root_str)
     .execute(pool)
     .await?;
 
@@ -77,6 +80,19 @@ async fn init_app_meta(pool: &SqlitePool, storage_root: &PathBuf) -> Result<(), 
   sqlx::query("INSERT OR IGNORE INTO app_meta (k, v) VALUES (?, ?)")
     .bind("low_stock_threshold")
     .bind("0")
+    .execute(pool)
+    .await?;
+
+  // 新增导出目录与备份目录的配置，便于后续可配置化
+  sqlx::query("INSERT OR IGNORE INTO app_meta (k, v) VALUES (?, ?)")
+    .bind("exports_dir")
+    .bind(exports_str)
+    .execute(pool)
+    .await?;
+
+  sqlx::query("INSERT OR IGNORE INTO app_meta (k, v) VALUES (?, ?)")
+    .bind("backups_dir")
+    .bind(backups_str)
     .execute(pool)
     .await?;
 

@@ -16,6 +16,10 @@ pub struct SettingsDto {
   pub rbac_enabled: bool,
   // 存储根目录
   pub storage_root: String,
+  // 导出目录
+  pub exports_dir: String,
+  // 备份目录
+  pub backups_dir: String,
   // 库位号补零位数
   pub slot_no_pad: i64,
   // 低库存阈值
@@ -41,9 +45,19 @@ pub async fn get_settings(pool: &SqlitePool) -> Result<SettingsDto, AppError> {
     .filter(|value| *value >= 0)
     .unwrap_or(0);
 
+  let exports_dir = meta_repo::get_meta_value(pool, "exports_dir")
+    .await?
+    .unwrap_or_default();
+
+  let backups_dir = meta_repo::get_meta_value(pool, "backups_dir")
+    .await?
+    .unwrap_or_default();
+
   Ok(SettingsDto {
     rbac_enabled: rbac == "1",
     storage_root,
+    exports_dir,
+    backups_dir,
     slot_no_pad,
     low_stock_threshold,
   })

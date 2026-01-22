@@ -4,7 +4,7 @@ use sqlx::SqlitePool;
 use uuid::Uuid;
 
 use crate::domain::errors::{AppError, ErrorCode};
-use crate::repo::{item_repo, meta_repo, txn_repo, operator_repo};
+use crate::repo::{item_repo, meta_repo, operator_repo};
 use crate::services::txn_service;
 
 #[derive(Debug, serde::Serialize)]
@@ -16,7 +16,11 @@ pub async fn export_items(pool: &SqlitePool) -> Result<ExportResult, AppError> {
   let storage_root = meta_repo::get_meta_value(pool, "storage_root")
     .await?
     .ok_or_else(|| AppError::new(ErrorCode::NotFound, "存储根目录未配置"))?;
-  let export_dir = std::path::PathBuf::from(storage_root).join("exports");
+  // 优先使用可配置的 exports_dir，否则回退到 storage_root/exports
+  let export_dir = match meta_repo::get_meta_value(pool, "exports_dir").await? {
+    Some(dir) if !dir.is_empty() => std::path::PathBuf::from(dir),
+    _ => std::path::PathBuf::from(&storage_root).join("exports"),
+  };
   std::fs::create_dir_all(&export_dir)
     .map_err(|_| AppError::new(ErrorCode::IoError, "创建导出目录失败"))?;
 
@@ -63,62 +67,7 @@ pub async fn export_items(pool: &SqlitePool) -> Result<ExportResult, AppError> {
   })
 }
 
-pub async fn export_txns(pool: &SqlitePool) -> Result<ExportResult, AppError> {
-  let storage_root = meta_repo::get_meta_value(pool, "storage_root")
-    .await?
-    .ok_or_else(|| AppError::new(ErrorCode::NotFound, "存储根目录未配置"))?;
-  let export_dir = std::path::PathBuf::from(storage_root).join("exports");
-  std::fs::create_dir_all(&export_dir)
-    .map_err(|_| AppError::new(ErrorCode::IoError, "创建导出目录失败"))?;
-
-  let now = Utc::now().timestamp();
-  let file_path = export_dir.join(format!("txns_export_{}.csv", now));
-  let mut writer = WriterBuilder::new()
-    .has_headers(true)
-    .from_path(&file_path)
-    .map_err(|_| AppError::new(ErrorCode::IoError, "创建导出文件失败"))?;
-
-  writer
-    .write_record([
-      "type",
-      "item_code",
-      "from_slot_code",
-      "to_slot_code",
-      "qty",
-      "actual_qty",
-      "occurred_at",
-      "operator_username",
-      "note",
-      "ref_txn_no",
-    ])
-    .map_err(|_| AppError::new(ErrorCode::IoError, "写入导出文件失败"))?;
-
-  let txns = txn_repo::list_txns_export(pool).await?;
-  for txn in txns {
-    writer
-      .write_record([
-        txn.txn_type,
-        txn.item_code,
-        txn.from_slot_code.unwrap_or_default(),
-        txn.to_slot_code.unwrap_or_default(),
-        txn.qty.to_string(),
-        txn.actual_qty.map(|v| v.to_string()).unwrap_or_default(),
-        txn.occurred_at.to_string(),
-        txn.operator_username,
-        txn.note.unwrap_or_default(),
-        txn.ref_txn_no.unwrap_or_default(),
-      ])
-      .map_err(|_| AppError::new(ErrorCode::IoError, "写入导出文件失败"))?;
-  }
-
-  writer
-    .flush()
-    .map_err(|_| AppError::new(ErrorCode::IoError, "写入导出文件失败"))?;
-
-  Ok(ExportResult {
-    file_path: file_path.to_string_lossy().to_string(),
-  })
-}
+// txns export moved to txn_service
 
 pub async fn import_items(pool: &SqlitePool, file_path: &str) -> Result<(), AppError> {
   let mut reader = ReaderBuilder::new()

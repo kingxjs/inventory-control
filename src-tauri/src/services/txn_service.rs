@@ -3,7 +3,9 @@ use sqlx::SqlitePool;
 use uuid::Uuid;
 
 use crate::domain::errors::{AppError, ErrorCode};
-use crate::repo::{item_repo, operator_repo, rack_repo, stock_repo, txn_repo};
+use crate::repo::{item_repo, operator_repo, rack_repo, stock_repo, txn_repo, meta_repo, warehouse_repo};
+use csv::WriterBuilder;
+use std::path::PathBuf;
 
 pub async fn create_inbound(
   pool: &SqlitePool,
@@ -376,6 +378,168 @@ pub async fn list_txns(
   )
   .await?;
   Ok(TxnListResult { items, total })
+}
+
+#[derive(Debug, serde::Serialize)]
+pub struct TxnExportResult {
+  pub file_path: String,
+}
+
+pub async fn export_txns(
+  pool: &SqlitePool,
+  txn_type: Option<String>,
+  keyword: Option<String>,
+  item_id: Option<String>,
+  slot_id: Option<String>,
+  warehouse_id: Option<String>,
+  rack_id: Option<String>,
+  operator_id: Option<String>,
+  start_at: Option<i64>,
+  end_at: Option<i64>
+) -> Result<TxnExportResult, AppError> {
+  let storage_root = meta_repo::get_meta_value(pool, "storage_root")
+    .await?
+    .ok_or_else(|| AppError::new(ErrorCode::NotFound, "存储根目录未配置"))?;
+  let export_dir = match meta_repo::get_meta_value(pool, "exports_dir").await? {
+    Some(dir) if !dir.is_empty() => PathBuf::from(dir),
+    _ => PathBuf::from(storage_root).join("exports"),
+  };
+  std::fs::create_dir_all(&export_dir)
+    .map_err(|_| AppError::new(ErrorCode::IoError, "创建导出目录失败"))?;
+
+  let now = Utc::now().timestamp();
+  let file_path = export_dir.join(format!("流水导出数据_{}.csv", now));
+  let mut writer = WriterBuilder::new()
+    .has_headers(true)
+    .from_path(&file_path)
+    .map_err(|_| AppError::new(ErrorCode::IoError, "创建导出文件失败"))?;
+
+  writer
+    .write_record([
+      "类型",
+      "仓库",
+      "货架",
+      "来源库位",
+      "目标库位",
+      "物品",
+      "物品编码",
+      "数量",
+      "实盘数量",
+      "发生时间",
+      "记录人",
+      "备注",
+      "关联流水号",
+    ])
+    .map_err(|_| AppError::new(ErrorCode::IoError, "写入导出文件失败"))?;
+  let page_size  = 100;
+  // 使用分页查询 list_txns 导出，避免一次性加载所有数据
+  let (_start_page, _ps) = normalize_page(1, page_size)?;
+  let mut page = 1;
+  loop {
+    let res = list_txns(
+      pool,
+      txn_type.clone(),
+      keyword.clone(),
+      item_id.clone(),
+      slot_id.clone(),
+      warehouse_id.clone(),
+      rack_id.clone(),
+      operator_id.clone(),
+      start_at,
+      end_at,
+      page,
+      page_size,
+    )
+    .await?;
+
+    if res.items.is_empty() {
+      break;
+    }
+
+    let fetched_count = res.items.len() as i64;
+    for txn in res.items {
+      // 映射类型显示名
+      let txn_type_display = match txn.txn_type.as_str() {
+        "IN" => "入库",
+        "OUT" => "出库",
+        "MOVE" => "移库",
+        "COUNT" => "盘点",
+        "ADJUST" => "调整",
+        "REVERSAL" => "冲正",
+        other => other,
+      };
+
+      // 尝试从来源库位获取货架/仓库信息，若无则使用目标库位
+      let mut warehouse_name = String::new();
+      let mut rack_name = String::new();
+      if let Some(from_slot_id) = &txn.from_slot_id {
+        if let Some(slot) = rack_repo::get_slot_by_id(pool, from_slot_id).await? {
+          if let Some(rack) = rack_repo::get_rack_by_id(pool, &slot.rack_id).await? {
+            rack_name = rack.name.clone();
+            if let Some(wid) = rack.warehouse_id.clone() {
+              if let Some(wh) = warehouse_repo::get_warehouse_by_id(pool, &wid).await? {
+                warehouse_name = wh.name.clone();
+              }
+            }
+          } else if let Some(wid) = slot.warehouse_id.clone() {
+            if let Some(wh) = warehouse_repo::get_warehouse_by_id(pool, &wid).await? {
+              warehouse_name = wh.name.clone();
+            }
+          }
+        }
+      }
+      if warehouse_name.is_empty() && rack_name.is_empty() {
+        if let Some(to_slot_id) = &txn.to_slot_id {
+          if let Some(slot) = rack_repo::get_slot_by_id(pool, to_slot_id).await? {
+            if let Some(rack) = rack_repo::get_rack_by_id(pool, &slot.rack_id).await? {
+              rack_name = rack.name.clone();
+              if let Some(wid) = rack.warehouse_id.clone() {
+                if let Some(wh) = warehouse_repo::get_warehouse_by_id(pool, &wid).await? {
+                  warehouse_name = wh.name.clone();
+                }
+              }
+            } else if let Some(wid) = slot.warehouse_id.clone() {
+              if let Some(wh) = warehouse_repo::get_warehouse_by_id(pool, &wid).await? {
+                warehouse_name = wh.name.clone();
+              }
+            }
+          }
+        }
+      }
+
+      writer
+        .write_record([
+          txn_type_display.to_string(),
+          warehouse_name,
+          rack_name,
+          txn.from_slot_code.unwrap_or_default(),
+          txn.to_slot_code.unwrap_or_default(),
+          txn.item_name,
+          txn.item_code,
+          txn.qty.to_string(),
+          txn.actual_qty.map(|v| v.to_string()).unwrap_or_default(),
+          txn.occurred_at.to_string(),
+          txn.operator_name,
+          txn.note.unwrap_or_default(),
+          txn.ref_txn_no.unwrap_or_default(),
+        ])
+        .map_err(|_| AppError::new(ErrorCode::IoError, "写入导出文件失败"))?;
+    }
+
+    let fetched_until = page.saturating_mul(page_size);
+    if fetched_until >= res.total || fetched_count < page_size {
+      break;
+    }
+    page += 1;
+  }
+
+  writer
+    .flush()
+    .map_err(|_| AppError::new(ErrorCode::IoError, "写入导出文件失败"))?;
+
+  Ok(TxnExportResult {
+    file_path: file_path.to_string_lossy().to_string(),
+  })
 }
 
 async fn require_active_operator_by_id(

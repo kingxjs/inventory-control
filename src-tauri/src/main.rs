@@ -1,4 +1,5 @@
-use inventory_control::api::{app_cmd, audit_cmd, auth_cmd, dashboard_cmd, data_cmd, item_cmd, operator_cmd, photo_cmd, rack_cmd, stock_cmd, system_cmd, txn_cmd, warehouse_cmd};
+use inventory_control::api::{app_cmd,audit_cmd, auth_cmd, dashboard_cmd, data_cmd, item_cmd, operator_cmd, photo_cmd, rack_cmd, stock_cmd, system_cmd, txn_cmd, warehouse_cmd};
+use inventory_control::infra::{fs};
 use inventory_control::infra::db;
 use inventory_control::state::AppState;
 use tauri::Manager;
@@ -40,6 +41,9 @@ fn main() {
       Ok(())
     })
     .invoke_handler(tauri::generate_handler![
+      // 文件系统相关命令
+      fs::open_folder,
+      fs::reveal_in_folder,
       // 审计查询相关命令
       audit_cmd::list_audit_logs,
       audit_cmd::export_audit_logs,
@@ -47,7 +51,7 @@ fn main() {
       data_cmd::backup_db,
       data_cmd::restore_db,
       data_cmd::export_items,
-      data_cmd::export_txns,
+      txn_cmd::export_txns,
       data_cmd::import_items,
       data_cmd::import_txns,
       // 认证相关命令
@@ -100,6 +104,8 @@ fn main() {
       system_cmd::get_settings,
       system_cmd::set_settings,
       system_cmd::set_storage_root,
+      system_cmd::set_exports_dir,
+      system_cmd::set_backups_dir,
       // 库存管理相关命令
       stock_cmd::list_stock_by_slot,
       stock_cmd::list_stock_by_item,
