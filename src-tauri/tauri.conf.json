@@ -68,20 +68,6 @@
       "exceptionDomain": null,
       "signingIdentity": null,
       "entitlements": null
-    },
-    "android": {
-      "package": "com.inventory.control",
-      "versionCode": 1,
-      "adaptiveIcon": {
-        "foregroundImage": "icons/icon.png",
-        "backgroundColor": "#FFFFFF"
-      },
-      "signing": {
-        "keystorePath": "gen/android/keystore.jks",
-        "alias": "inventory",
-        "storePassword": null,
-        "keyPassword": null
-      }
     }
   }
 }
