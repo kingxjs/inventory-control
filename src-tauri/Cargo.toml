@@ -6,8 +6,12 @@ edition = "2021"
 [lib]
 name = "inventory_control"
 path = "src/lib.rs"
-# Android 需要 cdylib
 crate-type = ["lib", "cdylib", "staticlib"]
+
+# 定义二进制目标（桌面端使用）
+[[bin]]
+name = "inventory-control"
+path = "src/main.rs"
 
 [build-dependencies]
 tauri-build = { version = "2", features = [] }
@@ -40,7 +44,6 @@ features = ["rt-multi-thread", "macros"]
 [dev-dependencies]
 tempfile = "3.12"
 
-# Windows 子系统配置 - 隐藏控制台窗口
 [profile.release]
 panic = "abort"
 codegen-units = 1
