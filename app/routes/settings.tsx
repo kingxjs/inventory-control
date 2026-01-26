@@ -6,8 +6,7 @@ import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "~/com
 import { Input } from "~/components/ui/input";
 import { InputGroup, InputGroupAddon, InputGroupButton, InputGroupInput } from "~/components/ui/input-group";
 import { Label } from "~/components/ui/label";
-import { getSession } from "~/lib/auth";
-import { tauriInvoke } from "~/lib/tauri";
+import { tauriInvoke, openFolder } from "~/lib/tauri";
 import { toast } from "sonner";
 import { AlertDialog, AlertDialogContent, AlertDialogHeader, AlertDialogTitle, AlertDialogDescription, AlertDialogFooter, AlertDialogAction, AlertDialogCancel } from "~/components/ui/alert-dialog";
 
@@ -108,7 +107,7 @@ export default function SettingsPage() {
   };
   const handleOpenBackupsDir = async () => {
     try {
-      await tauriInvoke("open_folder", { path: settings.backups_dir });
+      await openFolder(settings.backups_dir);
     } catch (err) {
       const message = err instanceof Error ? err.message : "打开失败";
       toast.error(message);
