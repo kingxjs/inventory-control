@@ -1,6 +1,6 @@
 {
   "name": "inventory-control",
-  "version": "0.1.4",
+  "version": "0.1.5",
   "private": true,
   "type": "module",
   "description": "迷糊虫出品的库存管理应用",
@@ -12,7 +12,11 @@
     "dev": "react-router dev",
     "start": "react-router-serve ./build/server/index.js",
     "typecheck": "react-router typegen && tsc",
-    "tauri": "tauri"
+    "tauri": "tauri",
+    "bump": "node scripts/bump-version.js",
+    "bump:patch": "node scripts/bump-version.js --patch",
+    "bump:minor": "node scripts/bump-version.js --minor",
+    "bump:major": "node scripts/bump-version.js --major"
   },
   "dependencies": {
     "@hookform/resolvers": "^5.2.2",
