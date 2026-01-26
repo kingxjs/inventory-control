@@ -457,7 +457,7 @@ jobs:
             src-tauri/gen/android/app/build/outputs/apk/universal/release/InventoryControl-*.apk
           compression-level: 0
 
-  ccreate-release:
+  create-release:
     needs: [build-windows, build-macos, build-android]
     runs-on: ubuntu-latest
     steps:
