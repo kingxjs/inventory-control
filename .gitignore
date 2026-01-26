@@ -15,3 +15,4 @@
 .secrets/
 *.pfx
 *.pfx.base64
+src-tauri/android/keystore.jks
