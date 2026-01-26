@@ -338,37 +338,33 @@ jobs:
       - name: Install cargo-ndk
         run: cargo install cargo-ndk
 
-      # 关键：删除旧的 Android 项目并重新初始化
       - name: Clean and initialize Tauri Android
         run: |
-          # 删除可能存在的旧 Android 项目
           rm -rf src-tauri/gen/android
-          
-          # 重新初始化 Android 项目
           pnpm tauri android init
+
+      - name: Suppress Android SDK warnings
+        run: |
+          cd src-tauri/gen/android
+          if [ ! -f gradle.properties ]; then
+            touch gradle.properties
+          fi
+          echo "" >> gradle.properties
+          echo "# Suppress compileSdk warnings" >> gradle.properties
+          echo "android.suppressUnsupportedCompileSdk=36" >> gradle.properties
 
       - name: Setup Android signing
         run: |
-          # 创建 keystore.properties 文件
           cd src-tauri/gen/android
           echo "keyAlias=${{ secrets.ANDROID_KEY_ALIAS }}" > keystore.properties
           echo "password=${{ secrets.ANDROID_KEY_PASSWORD }}" >> keystore.properties
           base64 -d <<< "${{ secrets.ANDROID_KEY_BASE64 }}" > $RUNNER_TEMP/keystore.jks
           echo "storeFile=$RUNNER_TEMP/keystore.jks" >> keystore.properties
           
-          cat keystore.properties
-          ls -la $RUNNER_TEMP/keystore.jks
-
-      - name: Verify Android project structure
-        run: |
-          echo "=== Android project structure ==="
-          ls -la src-tauri/gen/android/
-          echo ""
-          echo "=== App directory ==="
-          ls -la src-tauri/gen/android/app/
-          echo ""
-          echo "=== Source directory ==="
-          find src-tauri/gen/android/app/src/main/java -type d
+          # 验证密钥库文件
+          echo "=== Verifying keystore ==="
+          ls -lh $RUNNER_TEMP/keystore.jks
+          file $RUNNER_TEMP/keystore.jks
 
       - name: Build Android APK and AAB
         run: pnpm tauri android build --apk --aab
@@ -379,19 +375,86 @@ jobs:
 
       - name: List build outputs
         run: |
-          echo "=== APK files ==="
-          find src-tauri/gen/android -name "*.apk" -type f
+          echo "=== All APK files ==="
+          find src-tauri/gen/android -name "*.apk" -type f -exec ls -lh {} \;
           echo ""
-          echo "=== AAB files ==="
-          find src-tauri/gen/android -name "*.aab" -type f
+          echo "=== All AAB files ==="
+          find src-tauri/gen/android -name "*.aab" -type f -exec ls -lh {} \;
+
+      - name: Sign APK
+        run: |
+          # 定位 apksigner 工具
+          BUILD_TOOLS_VERSION=$(ls $ANDROID_HOME/build-tools | sort -V | tail -n 1)
+          APKSIGNER=$ANDROID_HOME/build-tools/$BUILD_TOOLS_VERSION/apksigner
+          
+          echo "Using apksigner: $APKSIGNER"
+          echo "Build tools version: $BUILD_TOOLS_VERSION"
+          
+          # 输入和输出文件路径
+          UNSIGNED_APK="src-tauri/gen/android/app/build/outputs/apk/universal/release/app-universal-release-unsigned.apk"
+          SIGNED_APK="src-tauri/gen/android/app/build/outputs/apk/universal/release/app-universal-release-signed.apk"
+          
+          # 对齐 APK（可选但推荐）
+          ZIPALIGN=$ANDROID_HOME/build-tools/$BUILD_TOOLS_VERSION/zipalign
+          ALIGNED_APK="src-tauri/gen/android/app/build/outputs/apk/universal/release/app-universal-release-aligned.apk"
+          
+          echo "=== Aligning APK ==="
+          $ZIPALIGN -v -p 4 $UNSIGNED_APK $ALIGNED_APK
+          
+          # 签名 APK
+          echo "=== Signing APK ==="
+          $APKSIGNER sign \
+            --ks $RUNNER_TEMP/keystore.jks \
+            --ks-key-alias ${{ secrets.ANDROID_KEY_ALIAS }} \
+            --ks-pass pass:${{ secrets.ANDROID_KEY_PASSWORD }} \
+            --key-pass pass:${{ secrets.ANDROID_KEY_PASSWORD }} \
+            --out $SIGNED_APK \
+            $ALIGNED_APK
+          
+          # 验证签名
+          echo "=== Verifying signature ==="
+          $APKSIGNER verify --verbose $SIGNED_APK
+          
+          # 显示文件信息
+          echo "=== Signed APK info ==="
+          ls -lh $SIGNED_APK
+
+      - name: Verify AAB signature
+        run: |
+          # AAB 应该在构建时已经签名（通过 build.gradle.kts 配置）
+          echo "=== AAB file info ==="
+          ls -lh src-tauri/gen/android/app/build/outputs/bundle/universalRelease/app-universal-release.aab
+          
+          # 检查 AAB 是否已签名
+          BUILD_TOOLS_VERSION=$(ls $ANDROID_HOME/build-tools | sort -V | tail -n 1)
+          APKSIGNER=$ANDROID_HOME/build-tools/$BUILD_TOOLS_VERSION/apksigner
+          
+          # 从 AAB 提取签名信息（需要先解压）
+          unzip -l src-tauri/gen/android/app/build/outputs/bundle/universalRelease/app-universal-release.aab | grep -i "META-INF" || echo "Warning: AAB may not be signed"
+
+      - name: Rename artifacts with version
+        run: |
+          VERSION=$(node -p "require('./package.json').version")
+          
+          # 重命名 APK
+          cp src-tauri/gen/android/app/build/outputs/apk/universal/release/app-universal-release-signed.apk \
+             src-tauri/gen/android/app/build/outputs/apk/universal/release/InventoryControl-${VERSION}-universal.apk
+          
+          # 重命名 AAB
+          cp src-tauri/gen/android/app/build/outputs/bundle/universalRelease/app-universal-release.aab \
+             src-tauri/gen/android/app/build/outputs/bundle/universalRelease/InventoryControl-${VERSION}-universal.aab
+          
+          echo "=== Renamed artifacts ==="
+          ls -lh src-tauri/gen/android/app/build/outputs/apk/universal/release/InventoryControl-*.apk
+          ls -lh src-tauri/gen/android/app/build/outputs/bundle/universalRelease/InventoryControl-*.aab
 
       - name: Upload Android artifacts
         uses: actions/upload-artifact@v4
         with:
           name: android-bundles
           path: |
-            src-tauri/gen/android/app/build/outputs/bundle/release/*.aab
-            src-tauri/gen/android/app/build/outputs/apk/release/*.apk
+            src-tauri/gen/android/app/build/outputs/bundle/universalRelease/InventoryControl-*.aab
+            src-tauri/gen/android/app/build/outputs/apk/universal/release/InventoryControl-*.apk
           compression-level: 0
 
   create-release:
@@ -426,7 +489,7 @@ jobs:
           mkdir -p release-files
 
           # Windows
-          find artifacts/windows-installers -type f \( -name "*.exe" -o -name "*.msi" \) | while read file; do
+          find artifacts/windows-installers -type f \( -name "*.exe" -o -name "*.msi" \) 2>/dev/null | while read file; do
             filename=$(basename "$file")
             newname=$(echo "$filename" | sed 's/出入库登记系统/InventoryControl/g')
             cp "$file" "release-files/$newname"
@@ -434,19 +497,21 @@ jobs:
           done
 
           # macOS
-          find artifacts/macos-installers -type f -name "*.dmg" | while read file; do
+          find artifacts/macos-installers -type f -name "*.dmg" 2>/dev/null | while read file; do
             filename=$(basename "$file")
             newname=$(echo "$filename" | sed 's/出入库登记系统/InventoryControl/g')
             cp "$file" "release-files/$newname"
             echo "Copied: $filename -> $newname"
           done
 
-          # Android
-          find artifacts/android-bundles -type f \( -name "*.apk" -o -name "*.aab" \) | while read file; do
+          # Android - 直接复制已重命名的文件
+          find artifacts/android-bundles -type f \( -name "*.apk" -o -name "*.aab" \) 2>/dev/null | while read file; do
             cp "$file" "release-files/"
             echo "Copied: $(basename $file)"
           done
 
+          echo ""
+          echo "=== Release files ==="
           ls -lh release-files/
 
       - name: Create and push git tag
@@ -488,5 +553,18 @@ jobs:
           files: release-files/*
           fail_on_unmatched_files: true
           generate_release_notes: true
+          body: |
+            ## 📦 下载说明
+            
+            ### Windows
+            - `*.exe` - NSIS 安装程序（推荐）
+            - `*.msi` - MSI 安装程序
+            
+            ### macOS
+            - `*.dmg` - DMG 镜像文件（Intel + Apple Silicon 通用版）
+            
+            ### Android
+            - `*.apk` - 直接安装包（适用于侧载）
+            - `*.aab` - Google Play 上架包
         env:
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
