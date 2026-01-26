@@ -338,17 +338,37 @@ jobs:
       - name: Install cargo-ndk
         run: cargo install cargo-ndk
 
-      - name: Initialize Tauri Android
+      # 关键：删除旧的 Android 项目并重新初始化
+      - name: Clean and initialize Tauri Android
         run: |
-          pnpm tauri android init || echo "Android already initialized"
+          # 删除可能存在的旧 Android 项目
+          rm -rf src-tauri/gen/android
+          
+          # 重新初始化 Android 项目
+          pnpm tauri android init
 
       - name: Setup Android signing
         run: |
-          mkdir -p src-tauri/gen/android
-          echo "keyAlias=${{ secrets.ANDROID_KEY_ALIAS }}" > src-tauri/gen/android/keystore.properties
-          echo "password=${{ secrets.ANDROID_KEY_PASSWORD }}" >> src-tauri/gen/android/keystore.properties
+          # 创建 keystore.properties 文件
+          cd src-tauri/gen/android
+          echo "keyAlias=${{ secrets.ANDROID_KEY_ALIAS }}" > keystore.properties
+          echo "password=${{ secrets.ANDROID_KEY_PASSWORD }}" >> keystore.properties
           base64 -d <<< "${{ secrets.ANDROID_KEY_BASE64 }}" > $RUNNER_TEMP/keystore.jks
-          echo "storeFile=$RUNNER_TEMP/keystore.jks" >> src-tauri/gen/android/keystore.properties
+          echo "storeFile=$RUNNER_TEMP/keystore.jks" >> keystore.properties
+          
+          cat keystore.properties
+          ls -la $RUNNER_TEMP/keystore.jks
+
+      - name: Verify Android project structure
+        run: |
+          echo "=== Android project structure ==="
+          ls -la src-tauri/gen/android/
+          echo ""
+          echo "=== App directory ==="
+          ls -la src-tauri/gen/android/app/
+          echo ""
+          echo "=== Source directory ==="
+          find src-tauri/gen/android/app/src/main/java -type d
 
       - name: Build Android APK and AAB
         run: pnpm tauri android build --apk --aab
@@ -356,6 +376,14 @@ jobs:
           CARGO_INCREMENTAL: 0
           CARGO_PROFILE_RELEASE_LTO: false
           CARGO_PROFILE_RELEASE_CODEGEN_UNITS: 16
+
+      - name: List build outputs
+        run: |
+          echo "=== APK files ==="
+          find src-tauri/gen/android -name "*.apk" -type f
+          echo ""
+          echo "=== AAB files ==="
+          find src-tauri/gen/android -name "*.aab" -type f
 
       - name: Upload Android artifacts
         uses: actions/upload-artifact@v4
