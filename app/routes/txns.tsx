@@ -9,7 +9,6 @@ import { DatePicker } from "~/components/ui/date";
 import { Input } from "~/components/ui/input";
 import { Label } from "~/components/ui/label";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "~/components/ui/select";
-import { Combobox } from "~/components/common/combobox";
 import { WarehousePicker } from "~/components/common/pickers/warehouse-picker";
 import { RackPicker } from "~/components/common/pickers/rack-picker";
 import { ItemPicker } from "~/components/common/pickers/item-picker";
@@ -19,7 +18,7 @@ import { Pagination, PaginationContent, PaginationItem, PaginationNext, Paginati
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "~/components/ui/table";
 import { Dialog, DialogContent, DialogDescription, DialogHeader, DialogTitle } from "~/components/ui/dialog";
 import { getSession } from "~/lib/auth";
-import { tauriInvoke } from "~/lib/tauri";
+import { tauriInvoke,revealInFolder } from "~/lib/tauri";
 import { toast } from "sonner";
 import { open } from "@tauri-apps/plugin-dialog";
 import { CommonDialog } from "~/components/common/common-dialogs";
@@ -157,15 +156,6 @@ export default function TxnsPage() {
     } catch (err) {
       const message = err instanceof Error ? err.message : "导出失败";
       toast.error(message);
-    }
-  };
-
-  const revealInFolder = async (file_path: string) => {
-    try {
-      await tauriInvoke("reveal_in_folder", { filePath: file_path });
-      console.log("Folder opened:", file_path);
-    } catch (error) {
-      console.error("Failed to open folder:", error);
     }
   };
 

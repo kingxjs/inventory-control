@@ -1,5 +1,7 @@
 use std::fs;
 use std::path::{Path, PathBuf};
+
+#[cfg(not(target_os = "android"))]
 use std::process::Command;
 
 use crate::domain::errors::{AppError, ErrorCode};

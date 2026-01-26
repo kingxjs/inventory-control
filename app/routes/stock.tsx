@@ -9,10 +9,8 @@ import { Input } from "~/components/ui/input";
 import { Label } from "~/components/ui/label";
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "~/components/ui/table";
 import { Pagination, PaginationContent, PaginationItem, PaginationNext, PaginationPrevious } from "~/components/ui/pagination";
-import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "~/components/ui/select";
 import { DropdownMenu, DropdownMenuContent, DropdownMenuItem, DropdownMenuTrigger } from "~/components/ui/dropdown-menu";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "~/components/ui/tabs";
-import { Combobox } from "~/components/common/combobox";
 import { SlotPicker } from "~/components/common/pickers/slot-picker";
 import { WarehousePicker } from "~/components/common/pickers/warehouse-picker";
 import { RackPicker } from "~/components/common/pickers/rack-picker";
@@ -20,7 +18,7 @@ import { ItemPicker } from "~/components/common/pickers/item-picker";
 /* SlotPicker replaced by SlotCascaderPicker inside dialogs; no direct import needed here */
 import { OperatorPicker } from "~/components/common/pickers/operator-picker";
 import { getSession } from "~/lib/auth";
-import { tauriInvoke } from "~/lib/tauri";
+import { tauriInvoke,revealInFolder } from "~/lib/tauri";
 import { toast } from "sonner";
 import { CommonDialog } from "~/components/common/common-dialogs";
 import InboundForm from "~/components/stock/forms/inbound-form";
@@ -369,14 +367,6 @@ export default function StockPage() {
   const applySelectedStock = async (mode: "outbound" | "move" | "count") => {
     if (!selectedStockRow) return;
     await applyStockRow(selectedStockRow, mode);
-  };
-  const revealInFolder = async (file_path: string) => {
-    try {
-      await tauriInvoke("reveal_in_folder", { filePath: file_path });
-      console.log("Folder opened:", file_path);
-    } catch (error) {
-      console.error("Failed to open folder:", error);
-    }
   };
   return (
     <div className="space-y-6">

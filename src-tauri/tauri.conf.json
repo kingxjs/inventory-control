@@ -1,7 +1,7 @@
 {
   "$schema": "https://tauri.app/schema.json",
   "productName": "出入库登记系统",
-  "version": "0.1.6",
+  "version": "0.1.7",
   "build": {
     "beforeDevCommand": "pnpm dev",
     "beforeBuildCommand": "pnpm build",
