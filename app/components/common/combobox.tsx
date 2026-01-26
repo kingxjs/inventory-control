@@ -85,14 +85,14 @@ export function Combobox({
 
   return (
     <Popover open={open} onOpenChange={(next) => !disabled && setOpen(next)}>
-      <PopoverTrigger asChild>
+        <PopoverTrigger asChild>
         <Button
           type="button"
           variant="outline"
           role="combobox"
           aria-expanded={open}
           disabled={disabled}
-          className="w-full justify-between"
+          className="w-full justify-between group"
         >
           <span className={cn("truncate", !selectedOption && "text-slate-400")}>
             {selectedOption ? selectedLabel : placeholder}
@@ -101,9 +101,9 @@ export function Combobox({
             {value !== "" && value !== "all" ? (
               <span
                 role="button"
-                tabIndex={0}
+                tabIndex={-1}
                 aria-label="清除选择"
-                className="rounded-full p-1 text-slate-500 hover:text-slate-700"
+                className="rounded-full p-1 text-slate-500 hover:text-slate-700 opacity-0 group-hover:opacity-100 group-focus:opacity-100 transition-opacity duration-150"
                 onClick={(e) => {
                   e.stopPropagation()
                   onChange("")
