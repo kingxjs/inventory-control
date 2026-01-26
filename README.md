@@ -24,9 +24,30 @@
  3. 生产构建（生成前端静态资源并构建本机包）
 
 ```
-package.json 修改version字段以更新版本号
-src-tauri/tauri.conf.json 修改version字段以更新版本号
-src-tauri/Cargo.toml 修改version字段以更新版本号
+# 版本同步（推荐）
+使用仓库自带脚本同步更新所有版本字段：
+
+```bash
+# 通过显式传参更新版本
+pnpm run bump 1.2.3        # 将所有位置的 version 更新为 1.2.3
+
+# 或使用三个独立的脚本按语义化版本自动递增
+pnpm run bump:patch        # 按 patch 递增（0.1.4 -> 0.1.5）
+pnpm run bump:minor        # 按 minor 递增（0.1.4 -> 0.2.0）
+pnpm run bump:major        # 按 major 递增（0.1.4 -> 1.0.0）
+
+# 仍然支持通过通用脚本传递 flag 的用法：
+pnpm run bump -- --patch
+pnpm run bump -- --minor
+pnpm run bump -- --major
+```
+
+脚本会更新：
+
+- `package.json`
+- `src-tauri/tauri.conf.json`
+- `src-tauri/Cargo.toml`
+
 ```
 
  ```bash
