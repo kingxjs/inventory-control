@@ -7,6 +7,7 @@ use inventory_control::state::AppState;
 use tauri::Manager;
 use tokio::sync::Mutex;
 
+#[cfg_attr(mobile, tauri::mobile_entry_point)]
 fn main() {
   tauri::Builder::default()
     .plugin(tauri_plugin_dialog::init())
