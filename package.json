@@ -1,6 +1,6 @@
 {
   "name": "inventory-control",
-  "version": "0.1.5",
+  "version": "0.1.6",
   "private": true,
   "type": "module",
   "description": "迷糊虫出品的库存管理应用",
