@@ -1,7 +1,7 @@
 name: Build Tauri Multi-Platform Installers
 on:
   push:
-    branches: [ main ]
+    branches: [main]
   workflow_dispatch: {}
 
 # 取消之前的重复构建
@@ -15,23 +15,23 @@ jobs:
     steps:
       - name: Checkout
         uses: actions/checkout@v4
-      
+
       - name: Setup Node.js
         uses: actions/setup-node@v4
         with:
-          node-version: '22'
-      
+          node-version: "22"
+
       - name: Install pnpm
         uses: pnpm/action-setup@v4
         with:
           version: 9
-      
+
       # pnpm 依赖缓存
       - name: Get pnpm store directory
         shell: bash
         run: |
           echo "STORE_PATH=$(pnpm store path --silent)" >> $GITHUB_ENV
-      
+
       - name: Setup pnpm cache
         uses: actions/cache@v4
         with:
@@ -39,15 +39,15 @@ jobs:
           key: ${{ runner.os }}-pnpm-store-${{ hashFiles('**/pnpm-lock.yaml') }}
           restore-keys: |
             ${{ runner.os }}-pnpm-store-
-      
+
       - name: Install dependencies
         run: pnpm install --frozen-lockfile
-      
+
       - name: Setup Rust toolchain
         uses: dtolnay/rust-toolchain@stable
         with:
           targets: x86_64-pc-windows-msvc
-      
+
       # Rust 编译缓存 - 缓存 crates.io 索引和依赖
       - name: Rust cache
         uses: Swatinem/rust-cache@v2
@@ -58,12 +58,12 @@ jobs:
           cache-all-crates: true
           # 使用共享密钥加速首次构建
           shared-key: "tauri-windows"
-      
+
       - name: Install WiX and NSIS
         run: |
           choco install wixtoolset -y
           choco install nsis -y
-      
+
       - name: Build Windows installers
         run: pnpm tauri build --bundles nsis msi
         env:
@@ -71,7 +71,7 @@ jobs:
           CARGO_PROFILE_RELEASE_LTO: false
           CARGO_PROFILE_RELEASE_CODEGEN_UNITS: 16
           CARGO_NET_GIT_FETCH_WITH_CLI: true
-      
+
       - name: Decode signing certificate
         if: env.HAS_SIGNING_CERT == 'true'
         shell: powershell
@@ -80,7 +80,7 @@ jobs:
         run: |
           $pfx = [System.Convert]::FromBase64String("${{ secrets.WINDOWS_SIGNING_PFX }}")
           [IO.File]::WriteAllBytes("$env:TEMP\cert.pfx", $pfx)
-      
+
       - name: Verify certificate
         if: env.HAS_SIGNING_CERT == 'true'
         shell: powershell
@@ -113,7 +113,7 @@ jobs:
             Write-Error "Failed to load certificate: $_"
             exit 1
           }
-      
+
       - name: Sign installers
         if: env.HAS_SIGNING_CERT == 'true'
         shell: powershell
@@ -125,10 +125,10 @@ jobs:
             $signtool = Get-ChildItem "C:\Program Files (x86)\Windows Kits" -Recurse -Filter "signtool.exe" | Select-Object -First 1 -ExpandProperty FullName
           }
           Write-Host "Using signtool at: $signtool"
-          
+
           $pwd = "${{ secrets.WINDOWS_SIGNING_PASSWORD }}"
           $cert = "$env:TEMP\cert.pfx"
-          
+
           $files = Get-ChildItem -Path src-tauri/target/release/bundle -Recurse -Include *.exe,*.msi
           foreach ($f in $files) {
             Write-Host "Signing $($f.FullName)"
@@ -139,7 +139,7 @@ jobs:
             }
             Write-Host "Successfully signed $($f.FullName)"
           }
-      
+
       - name: Verify signatures
         if: env.HAS_SIGNING_CERT == 'true'
         shell: powershell
@@ -147,17 +147,17 @@ jobs:
           HAS_SIGNING_CERT: ${{ secrets.WINDOWS_SIGNING_PFX != '' && secrets.WINDOWS_SIGNING_PASSWORD != '' }}
         run: |
           $ErrorActionPreference = 'Continue'
-          
+
           $signtool = "C:\Program Files (x86)\Windows Kits\10\bin\10.0.22621.0\x64\signtool.exe"
           if (-not (Test-Path $signtool)) {
             $signtool = Get-ChildItem "C:\Program Files (x86)\Windows Kits" -Recurse -Filter "signtool.exe" | Select-Object -First 1 -ExpandProperty FullName
           }
-          
+
           $files = Get-ChildItem -Path src-tauri/target/release/bundle -Recurse -Include *.exe,*.msi
-          
+
           Write-Host ""
           Write-Host "=== Signature Verification ===" -ForegroundColor Cyan
-          
+
           foreach ($f in $files) {
             Write-Host ""
             Write-Host "Checking: $($f.Name)" -ForegroundColor White
@@ -185,7 +185,7 @@ jobs:
               Write-Host "  [WARNING] Could not verify signature: $_" -ForegroundColor Yellow
             }
           }
-          
+
           Write-Host ""
           Write-Host "=== Summary ===" -ForegroundColor Cyan
           Write-Host "All files have been signed and timestamped." -ForegroundColor Green
@@ -198,7 +198,7 @@ jobs:
 
       - name: Show Windows bundle output
         run: Get-ChildItem -Path src-tauri/target/release/bundle -Recurse | ForEach-Object { Write-Host $_.FullName }
-      
+
       - name: Upload Windows artifacts
         uses: actions/upload-artifact@v4
         with:
@@ -206,30 +206,30 @@ jobs:
           path: |
             src-tauri/target/release/bundle/nsis/*.exe
             src-tauri/target/release/bundle/msi/*.msi
-          compression-level: 0  # 已经是压缩文件，跳过压缩
+          compression-level: 0 # 已经是压缩文件，跳过压缩
 
   build-macos:
     runs-on: macos-latest
     steps:
       - name: Checkout
         uses: actions/checkout@v4
-      
+
       - name: Setup Node.js
         uses: actions/setup-node@v4
         with:
-          node-version: '22'
-      
+          node-version: "22"
+
       - name: Install pnpm
         uses: pnpm/action-setup@v4
         with:
           version: 9
-      
+
       # pnpm 依赖缓存
       - name: Get pnpm store directory
         shell: bash
         run: |
           echo "STORE_PATH=$(pnpm store path --silent)" >> $GITHUB_ENV
-      
+
       - name: Setup pnpm cache
         uses: actions/cache@v4
         with:
@@ -237,15 +237,15 @@ jobs:
           key: ${{ runner.os }}-pnpm-store-${{ hashFiles('**/pnpm-lock.yaml') }}
           restore-keys: |
             ${{ runner.os }}-pnpm-store-
-      
+
       - name: Install dependencies
         run: pnpm install --frozen-lockfile
-      
+
       - name: Setup Rust toolchain
         uses: dtolnay/rust-toolchain@stable
         with:
           targets: aarch64-apple-darwin,x86_64-apple-darwin
-      
+
       # Rust 编译缓存 - 缓存 crates.io 索引和依赖
       - name: Rust cache
         uses: Swatinem/rust-cache@v2
@@ -256,18 +256,18 @@ jobs:
           cache-all-crates: true
           # 使用共享密钥加速首次构建
           shared-key: "tauri-macos"
-      
+
       - name: Build macOS Universal Binary
         run: pnpm tauri build --target universal-apple-darwin
         env:
-          CARGO_INCREMENTAL: 0  # 禁用增量编译（CI 环境更快）
-          CARGO_PROFILE_RELEASE_LTO: false  # 禁用 LTO
-          CARGO_PROFILE_RELEASE_CODEGEN_UNITS: 16  # 增加代码生成单元（并行编译）
-          CARGO_NET_GIT_FETCH_WITH_CLI: true  # 使用 git CLI 加速下载
+          CARGO_INCREMENTAL: 0 # 禁用增量编译（CI 环境更快）
+          CARGO_PROFILE_RELEASE_LTO: false # 禁用 LTO
+          CARGO_PROFILE_RELEASE_CODEGEN_UNITS: 16 # 增加代码生成单元（并行编译）
+          CARGO_NET_GIT_FETCH_WITH_CLI: true # 使用 git CLI 加速下载
 
       - name: Show macOS bundle output
         run: ls -R src-tauri/target/universal-apple-darwin/release/bundle || true
-      
+
       - name: Import Code-Signing Certificates
         if: env.HAS_MACOS_CERT == 'true'
         uses: apple-actions/import-codesign-certs@v2
@@ -276,7 +276,7 @@ jobs:
         with:
           p12-file-base64: ${{ secrets.APPLE_CERTIFICATE }}
           p12-password: ${{ secrets.APPLE_CERTIFICATE_PASSWORD }}
-      
+
       - name: Sign and Notarize macOS App
         if: env.HAS_MACOS_SIGNING == 'true'
         env:
@@ -287,7 +287,7 @@ jobs:
           APPLE_TEAM_ID: ${{ secrets.APPLE_TEAM_ID }}
         run: |
           echo "Signing configured via environment variables"
-      
+
       - name: Upload macOS artifacts
         uses: actions/upload-artifact@v4
         with:
@@ -295,11 +295,11 @@ jobs:
           path: |
             src-tauri/target/universal-apple-darwin/release/bundle/dmg/*.dmg
             src-tauri/target/universal-apple-darwin/release/bundle/macos/*.app
-          compression-level: 0  # 已经是压缩文件，跳过压缩
+          compression-level: 0 # 已经是压缩文件，跳过压缩
 
   build-android:
     runs-on: ubuntu-latest
-    needs: [build-macos]
+    # needs: [build-macos]
     steps:
       - name: Checkout
         uses: actions/checkout@v4
@@ -308,7 +308,7 @@ jobs:
         uses: actions/setup-java@v4
         with:
           distribution: temurin
-          java-version: '17'
+          java-version: "17"
 
       - name: Install Android SDK command-line tools
         run: |
@@ -356,7 +356,7 @@ jobs:
           compression-level: 0
 
   create-release:
-    needs: [build-windows, build-macos]
+    needs: [build-windows, build-macos, build-android]
     runs-on: ubuntu-latest
     steps:
       - name: Checkout repository
@@ -364,11 +364,11 @@ jobs:
         with:
           fetch-depth: 0
           token: ${{ secrets.GITHUB_TOKEN }}
-      
+
       - name: Setup Node.js
         uses: actions/setup-node@v4
         with:
-          node-version: '22'
+          node-version: "22"
 
       - name: Get version from package.json
         id: get_version
@@ -379,14 +379,14 @@ jobs:
         uses: actions/download-artifact@v4
         with:
           path: artifacts
-      
+
       - name: Display structure of downloaded files
         run: ls -R artifacts
 
       - name: Prepare release files
         run: |
           mkdir -p release-files
-          
+
           # 重命名文件为英文（避免 GitHub Release 中文文件名问题）
           find artifacts -type f -name "*.exe" -o -name "*.msi" -o -name "*.dmg" | while read file; do
             filename=$(basename "$file")
@@ -395,7 +395,7 @@ jobs:
             cp "$file" "release-files/$newname"
             echo "Renamed: $filename -> $newname"
           done
-          
+
           ls -lh release-files/
 
       - name: Create and push git tag
@@ -414,7 +414,7 @@ jobs:
             git push origin "v$VERSION"
             echo "tag_exists=false" >> $GITHUB_OUTPUT
           fi
-      
+
       - name: Delete existing release if tag exists
         if: steps.create_tag.outputs.tag_exists == 'true'
         env:
@@ -428,7 +428,7 @@ jobs:
           git tag -d "v$VERSION" || true
           git tag -a "v$VERSION" -m "Release v$VERSION"
           git push origin "v$VERSION"
-      
+
       - name: Create GitHub Release
         uses: softprops/action-gh-release@v1
         with:
