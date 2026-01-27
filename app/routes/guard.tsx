@@ -1,15 +1,13 @@
-import { useEffect, useState } from "react";
+import { useEffect } from "react";
 import { Outlet, useLocation, useNavigate } from "react-router";
-import { getSession, type Session } from "~/lib/auth";
+import { useSession } from "~/lib/auth";
 
 export default function GuardRoute() {
   const location = useLocation();
   const navigate = useNavigate();
-  const [session, setSession] = useState<Session | null>(() => getSession());
+  const session = useSession();
 
   useEffect(() => {
-    const session = getSession();
-    setSession(session);
     if (!session && location.pathname !== "/login") {
       navigate("/login", { replace: true });
       window.setTimeout(() => {
@@ -18,7 +16,7 @@ export default function GuardRoute() {
         }
       }, 0);
     }
-  }, [location.pathname, navigate]);
+  }, [location.pathname, navigate, session]);
 
   if (!session && location.pathname !== "/login") {
     return (

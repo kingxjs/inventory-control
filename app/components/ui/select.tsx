@@ -4,6 +4,13 @@ import { CheckIcon, ChevronDownIcon, ChevronUpIcon } from "lucide-react"
 
 import { cn } from "~/lib/utils"
 
+function getDialogPortalContainer() {
+  if (typeof document === "undefined") return undefined
+  const nodes = document.querySelectorAll("[data-slot='dialog-content']")
+  if (nodes.length === 0) return undefined
+  return nodes[nodes.length - 1] as HTMLElement
+}
+
 function Select({
   ...props
 }: React.ComponentProps<typeof SelectPrimitive.Root>) {
@@ -55,8 +62,9 @@ function SelectContent({
   align = "center",
   ...props
 }: React.ComponentProps<typeof SelectPrimitive.Content>) {
+  const container = getDialogPortalContainer()
   return (
-    <SelectPrimitive.Portal>
+    <SelectPrimitive.Portal container={container}>
       <SelectPrimitive.Content
         data-slot="select-content"
         className={cn(

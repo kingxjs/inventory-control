@@ -5,7 +5,7 @@ import { Button } from "~/components/ui/button"
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "~/components/ui/card"
 import { Form, FormControl, FormField, FormItem, FormLabel, FormMessage } from "~/components/ui/form"
 import { Input } from "~/components/ui/input"
-import { getSession, setSession } from "~/lib/auth"
+import { setSession, useSession } from "~/lib/auth"
 import {
   clearCredentials,
   loadSavedCredentials,
@@ -35,12 +35,12 @@ export default function LoginPage() {
       password: "",
     },
   })
+  const session = useSession()
   useEffect(() => {
-    const session = getSession()
     if (session) {
       navigate("/", { replace: true })
     }
-  }, [navigate])
+  }, [navigate, session])
 
   useEffect(() => {
     let mounted = true

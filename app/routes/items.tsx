@@ -1,4 +1,4 @@
-import { useEffect, useState } from "react"
+import { useEffect, useMemo, useState } from "react"
 import { useNavigate } from "react-router"
 import { useForm } from "react-hook-form"
 import { PageHeader } from "~/components/common/page-header"
@@ -37,10 +37,10 @@ import { Textarea } from "~/components/ui/textarea"
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "~/components/ui/select"
 import { DropdownMenu, DropdownMenuContent, DropdownMenuItem, DropdownMenuTrigger } from "~/components/ui/dropdown-menu"
 import { InputGroup, InputGroupAddon, InputGroupButton, InputGroupInput } from "~/components/ui/input-group"
-import { ChevronDownIcon, XIcon } from "lucide-react"
+import { ChevronDownIcon } from "lucide-react"
 import { getSession } from "~/lib/auth"
 import { tauriInvoke } from "~/lib/tauri"
-import { open } from "@tauri-apps/plugin-dialog"
+import { usePhotoList } from "~/lib/use-photo-list"
 import { toast } from "sonner"
 
 type ItemRow = {
@@ -102,11 +102,13 @@ export default function ItemsPage() {
   const [pageIndex, setPageIndex] = useState(1)
   const [pageSize] = useState(20)
   const [total, setTotal] = useState(0)
-  const [selectedPhotoPaths, setSelectedPhotoPaths] = useState<string[]>([])
-  const [selectedPreviewUrls, setSelectedPreviewUrls] = useState<Record<string, string>>({})
+  const {
+    paths: selectedPhotoPaths,
+    setPaths: setSelectedPhotoPaths,
+    reset: resetSelectedPhotoPaths,
+  } = usePhotoList()
   const [photoRows, setPhotoRows] = useState<PhotoRow[]>([])
   const [photoLoading, setPhotoLoading] = useState(false)
-  const [uploadedPreviewUrls, setUploadedPreviewUrls] = useState<Record<string, string>>({})
   const [storageRoot, setStorageRoot] = useState("")
   const form = useForm<ItemFormValues>({
     defaultValues: {
@@ -155,16 +157,8 @@ export default function ItemsPage() {
       uom: "",
       remark: "",
     })
-    setSelectedPhotoPaths([])
+    resetSelectedPhotoPaths()
     setPhotoRows([])
-    setSelectedPreviewUrls((prev) => {
-      Object.values(prev).forEach((url) => URL.revokeObjectURL(url))
-      return {}
-    })
-    setUploadedPreviewUrls((prev) => {
-      Object.values(prev).forEach((url) => URL.revokeObjectURL(url))
-      return {}
-    })
   }
 
   const openCreate = () => {
@@ -184,7 +178,7 @@ export default function ItemsPage() {
       uom: row.uom || "",
       remark: row.remark || "",
     })
-    setSelectedPhotoPaths([])
+    resetSelectedPhotoPaths()
     setFormOpen(true)
     fetchPhotos(row.id)
   }
@@ -308,26 +302,19 @@ export default function ItemsPage() {
     return `${root}/${filePath}`.replace(/\/{2,}/g, "/")
   }
 
-  const fetchImageUrl = async (path: string) => {
-    const bytes = await tauriInvoke<number[]>("read_photo_bytes", {
-      input: { path },
-    })
-    const blob = new Blob([new Uint8Array(bytes)])
-    return URL.createObjectURL(blob)
-  }
-
-  const handlePickPhotos = async () => {
-    const selected = await open({
-      multiple: true,
-      filters: [{ name: "Images", extensions: ["png", "jpg", "jpeg", "webp", "bmp"] }],
-    })
-    if (!selected) return
-    const filePaths = Array.isArray(selected) ? selected : [selected]
-    setSelectedPhotoPaths((prev) => {
-      const merged = new Set([...prev, ...filePaths])
-      return Array.from(merged)
-    })
-  }
+  const uploadedPhotoPaths = useMemo(
+    () => photoRows.map((photo) => buildPhotoPath(photo.file_path)).filter(Boolean),
+    [photoRows, storageRoot],
+  )
+  const uploadedPhotoByPath = useMemo(() => {
+    const entries = photoRows
+      .map((photo) => {
+        const path = buildPhotoPath(photo.file_path)
+        return path ? ([path, photo] as const) : null
+      })
+      .filter(Boolean) as Array<readonly [string, PhotoRow]>
+    return new Map<string, PhotoRow>(entries)
+  }, [photoRows, storageRoot])
 
   const uploadSelectedPhotos = async (itemId: string) => {
     if (selectedPhotoPaths.length === 0) return
@@ -340,7 +327,7 @@ export default function ItemsPage() {
         },
       })
       toast.success("图片上传成功")
-      setSelectedPhotoPaths([])
+      resetSelectedPhotoPaths()
       await fetchPhotos(itemId)
     } catch (err) {
       const message = err instanceof Error ? err.message : "图片上传失败"
@@ -364,89 +351,6 @@ export default function ItemsPage() {
       toast.error(message)
     }
   }
-
-  useEffect(() => {
-    let active = true
-    const load = async () => {
-      if (selectedPhotoPaths.length === 0) {
-        setSelectedPreviewUrls((prev) => {
-          Object.values(prev).forEach((url) => URL.revokeObjectURL(url))
-          return {}
-        })
-        return
-      }
-      try {
-        const entries = await Promise.all(
-          selectedPhotoPaths.map(async (path) => {
-            const url = await fetchImageUrl(path)
-            return [path, url] as const
-          }),
-        )
-        if (!active) {
-          entries.forEach(([, url]) => URL.revokeObjectURL(url))
-          return
-        }
-        setSelectedPreviewUrls((prev) => {
-          Object.entries(prev).forEach(([path, url]) => {
-            if (!selectedPhotoPaths.includes(path)) {
-              URL.revokeObjectURL(url)
-            }
-          })
-          return Object.fromEntries(entries)
-        })
-      } catch (err) {
-        const message = err instanceof Error ? err.message : "预览加载失败"
-        toast.error(message)
-      }
-    }
-    load()
-    return () => {
-      active = false
-    }
-  }, [selectedPhotoPaths])
-
-  useEffect(() => {
-    let active = true
-    const paths = photoRows
-      .map((photo) => buildPhotoPath(photo.file_path))
-      .filter(Boolean)
-    const load = async () => {
-      if (paths.length === 0) {
-        setUploadedPreviewUrls((prev) => {
-          Object.values(prev).forEach((url) => URL.revokeObjectURL(url))
-          return {}
-        })
-        return
-      }
-      try {
-        const entries = await Promise.all(
-          paths.map(async (path) => {
-            const url = await fetchImageUrl(path)
-            return [path, url] as const
-          }),
-        )
-        if (!active) {
-          entries.forEach(([, url]) => URL.revokeObjectURL(url))
-          return
-        }
-        setUploadedPreviewUrls((prev) => {
-          Object.entries(prev).forEach(([path, url]) => {
-            if (!paths.includes(path)) {
-              URL.revokeObjectURL(url)
-            }
-          })
-          return Object.fromEntries(entries)
-        })
-      } catch (err) {
-        const message = err instanceof Error ? err.message : "图片加载失败"
-        toast.error(message)
-      }
-    }
-    load()
-    return () => {
-      active = false
-    }
-  }, [photoRows, storageRoot])
 
   return (
     <div className="space-y-6">
@@ -598,14 +502,9 @@ export default function ItemsPage() {
                       )}
                     />
                     <ImagePicker
-                      selectedPaths={selectedPhotoPaths}
-                      previewUrls={selectedPreviewUrls}
-                      onPick={handlePickPhotos}
-                      onRemove={(path) =>
-                        setSelectedPhotoPaths((prev) =>
-                          prev.filter((item) => item !== path),
-                        )
-                      }
+                      photoType="item"
+                      value={selectedPhotoPaths}
+                      onChange={setSelectedPhotoPaths}
                     />
                     {editRow ? (
                       <div className="grid gap-2 md:col-span-2">
@@ -613,30 +512,17 @@ export default function ItemsPage() {
                         {photoLoading ? (
                           <div className="text-xs text-slate-500">加载中...</div>
                         ) : photoRows.length > 0 ? (
-                          <div className="grid gap-2 sm:grid-cols-3">
-                            {photoRows.map((photo) => {
-                              const path = buildPhotoPath(photo.file_path)
-                              return (
-                                <div
-                                  key={photo.id}
-                                  className="group relative aspect-[4/3] overflow-hidden rounded-lg border border-slate-200 bg-white"
-                                >
-                                  <img
-                                    src={path ? uploadedPreviewUrls[path] || "" : ""}
-                                    alt={photo.file_path}
-                                    className="h-full w-full object-cover"
-                                  />
-                                  <button
-                                    type="button"
-                                    className="absolute right-2 top-2 inline-flex h-6 w-6 items-center justify-center rounded-full bg-black/70 text-white opacity-0 transition group-hover:opacity-100"
-                                    onClick={() => handleRemoveUploadedPhoto(photo)}
-                                  >
-                                    <XIcon className="size-3" />
-                                  </button>
-                                </div>
-                              )
-                            })}
-                          </div>
+                          <ImagePicker
+                            photoType="item"
+                            value={uploadedPhotoPaths}
+                            mode="preview"
+                            onRemove={(path) => {
+                              const photo = uploadedPhotoByPath.get(path)
+                              if (photo) {
+                                void handleRemoveUploadedPhoto(photo)
+                              }
+                            }}
+                          />
                         ) : (
                           <div className="text-xs text-slate-500">暂无图片</div>
                         )}

@@ -7,7 +7,7 @@ import {
   ScrollRestoration,
 } from "react-router";
 import { useEffect, useRef, useState } from "react";
-import { getSession } from "./lib/auth";
+import { useSession } from "./lib/auth";
 import { tauriInvoke } from "./lib/tauri";
 import { Toaster } from "~/components/ui/sonner";
 
@@ -39,6 +39,7 @@ export default function App() {
   const initStartRef = useRef<number | null>(null);
   const [hydrated, setHydrated] = useState(false);
   const [initialized, setInitialized] = useState(false);
+  const session = useSession();
 
   useEffect(() => {
     setHydrated(true);
@@ -51,7 +52,6 @@ export default function App() {
     }
     const init = async () => {
       try {
-        const session = getSession();
         if (session) {
           await tauriInvoke("get_settings");
         }
@@ -73,7 +73,7 @@ export default function App() {
     return () => {
       mounted = false;
     };
-  }, []);
+  }, [session]);
 
   useEffect(() => {
     if (hydrated && initialized) {

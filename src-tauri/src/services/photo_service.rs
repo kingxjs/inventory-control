@@ -28,6 +28,7 @@ pub async fn add_photos(
   src_paths: Vec<String>,
 ) -> Result<(), AppError> {
   let storage_root = get_storage_root(pool).await?;
+  let staging_root = storage_root.join("photos").join("staging").join(photo_type);
   let photo_dir = storage_root
     .join("photos")
     .join(photo_type)
@@ -57,6 +58,11 @@ pub async fn add_photos(
     std::fs::copy(src_path, &dest_path)
       .map_err(|_| AppError::new(ErrorCode::IoError, "复制照片失败"))?;
 
+    // 若来源文件位于 staging 目录，则复制完成后立即删除，避免堆积临时文件。
+    if src_path.starts_with(&staging_root) && src_path.exists() {
+      let _ = std::fs::remove_file(src_path);
+    }
+
     let relative_path = format!(
       "photos/{}/{}/{}",
       photo_type,
@@ -78,6 +84,27 @@ pub async fn add_photos(
   }
 
   Ok(())
+}
+
+pub async fn stage_photo_bytes(
+  pool: &SqlitePool,
+  photo_type: &str,
+  extension: &str,
+  bytes: Vec<u8>,
+) -> Result<String, AppError> {
+  let storage_root = get_storage_root(pool).await?;
+  let staging_dir = storage_root.join("photos").join("staging").join(photo_type);
+  std::fs::create_dir_all(&staging_dir)
+    .map_err(|_| AppError::new(ErrorCode::IoError, "创建临时照片目录失败"))?;
+
+  let safe_ext = sanitize_extension(extension);
+  let file_name = format!("{}.{}", Uuid::new_v4(), safe_ext);
+  let staged_path = staging_dir.join(file_name);
+
+  std::fs::write(&staged_path, bytes)
+    .map_err(|_| AppError::new(ErrorCode::IoError, "写入临时照片失败"))?;
+
+  Ok(staged_path.to_string_lossy().to_string())
 }
 
 pub async fn remove_photo(
@@ -123,4 +150,23 @@ async fn get_storage_root(pool: &SqlitePool) -> Result<PathBuf, AppError> {
     .await?
     .ok_or_else(|| AppError::new(ErrorCode::NotFound, "存储根目录未配置"))?;
   Ok(PathBuf::from(root))
+}
+
+fn sanitize_extension(extension: &str) -> String {
+  let trimmed = extension.trim().trim_start_matches('.').to_ascii_lowercase();
+  if trimmed.is_empty() {
+    return "bin".to_string();
+  }
+  let filtered = trimmed
+    .chars()
+    .filter(|ch| ch.is_ascii_alphanumeric())
+    .collect::<String>()
+    .chars()
+    .take(12)
+    .collect::<String>();
+  if filtered.is_empty() {
+    "bin".to_string()
+  } else {
+    filtered
+  }
 }

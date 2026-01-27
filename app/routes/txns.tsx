@@ -2,6 +2,7 @@ import { useEffect, useMemo, useState } from "react";
 import { set, useForm } from "react-hook-form";
 import { useSearchParams } from "react-router";
 import { PageHeader } from "~/components/common/page-header";
+import { ImagePicker } from "~/components/common/image-picker";
 import { AlertDialog, AlertDialogAction, AlertDialogCancel, AlertDialogContent, AlertDialogDescription, AlertDialogFooter, AlertDialogHeader, AlertDialogTitle } from "~/components/ui/alert-dialog";
 import { Badge } from "~/components/ui/badge";
 import { Button } from "~/components/ui/button";
@@ -17,7 +18,7 @@ import { SlotPicker } from "~/components/common/pickers/slot-picker";
 import { Pagination, PaginationContent, PaginationItem, PaginationNext, PaginationPrevious } from "~/components/ui/pagination";
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "~/components/ui/table";
 import { Dialog, DialogContent, DialogDescription, DialogHeader, DialogTitle } from "~/components/ui/dialog";
-import { getSession } from "~/lib/auth";
+import { useSession } from "~/lib/auth";
 import { tauriInvoke,revealInFolder } from "~/lib/tauri";
 import { toast } from "sonner";
 import { open } from "@tauri-apps/plugin-dialog";
@@ -124,9 +125,8 @@ export default function TxnsPage() {
   const [exportFilePath, setExportFilePath] = useState("");
   const [txnPhotoRows, setTxnPhotoRows] = useState<TxnPhotoRow[]>([]);
   const [txnPhotoLoading, setTxnPhotoLoading] = useState(false);
-  const [txnPhotoUrls, setTxnPhotoUrls] = useState<Record<string, string>>({});
   const [storageRoot, setStorageRoot] = useState("");
-  const actorOperatorId = (getSession() as any)?.actor_operator_id || "";
+  const actorOperatorId = useSession()?.actor_operator_id || "";
   const reversalForm = useForm<ReversalFormValues>({
     defaultValues: {
       txn_no: "",
@@ -226,6 +226,11 @@ export default function TxnsPage() {
     const root = storageRoot.replace(/\\+/g, "/");
     return `${root}/${filePath}`.replace(/\/{2,}/g, "/");
   };
+
+  const txnPhotoPaths = useMemo(
+    () => txnPhotoRows.map((photo) => buildPhotoPath(photo.file_path)).filter(Boolean),
+    [txnPhotoRows, storageRoot],
+  );
 
   const fetchPhotoUrl = async (path: string) => {
     const bytes = await tauriInvoke<number[]>("read_photo_bytes", {
@@ -350,46 +355,6 @@ export default function TxnsPage() {
       active = false;
     };
   }, [detailOpen, activeRow?.txn_no]);
-
-  useEffect(() => {
-    let active = true;
-    const paths = txnPhotoRows.map((photo) => buildPhotoPath(photo.file_path)).filter(Boolean);
-    const load = async () => {
-      if (paths.length === 0) {
-        setTxnPhotoUrls((prev) => {
-          Object.values(prev).forEach((url) => URL.revokeObjectURL(url));
-          return {};
-        });
-        return;
-      }
-      try {
-        const entries = await Promise.all(
-          paths.map(async (path) => {
-            const url = await fetchPhotoUrl(path);
-            return [path, url] as const;
-          }),
-        );
-        if (!active) {
-          entries.forEach(([, url]) => URL.revokeObjectURL(url));
-          return;
-        }
-        setTxnPhotoUrls((prev) => {
-          Object.entries(prev).forEach(([path, url]) => {
-            if (!paths.includes(path)) {
-              URL.revokeObjectURL(url);
-            }
-          });
-          return Object.fromEntries(entries);
-        });
-      } catch {
-        toast.error("流水图片加载失败");
-      }
-    };
-    load();
-    return () => {
-      active = false;
-    };
-  }, [txnPhotoRows, storageRoot]);
 
   const txnTypeLabel = (txnType: string) => {
     switch (txnType) {
@@ -697,20 +662,10 @@ export default function TxnsPage() {
               ) : null}
               <div className="rounded-xl border border-slate-200 bg-slate-50 p-3 text-xs text-slate-500">备注：{activeRow.note || "-"}</div>
               <div className="grid gap-2">
-                <span className="text-sm font-medium text-slate-600">流水图片</span>
                 {txnPhotoLoading ? (
                   <div className="text-xs text-slate-500">加载中...</div>
-                ) : txnPhotoRows.length > 0 ? (
-                  <div className="grid gap-2 sm:grid-cols-3">
-                    {txnPhotoRows.map((photo) => {
-                      const path = buildPhotoPath(photo.file_path);
-                      return (
-                        <div key={photo.id} className="aspect-[4/3] overflow-hidden rounded-lg border border-slate-200 bg-white">
-                          <img src={path ? txnPhotoUrls[path] || "" : ""} alt={photo.file_path} className="h-full w-full object-cover" />
-                        </div>
-                      );
-                    })}
-                  </div>
+                ) : txnPhotoPaths.length > 0 ? (
+                  <ImagePicker label="流水图片" photoType="txn" value={txnPhotoPaths} mode="preview" />
                 ) : (
                   <div className="text-xs text-slate-500">暂无图片</div>
                 )}

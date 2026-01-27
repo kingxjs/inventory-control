@@ -89,6 +89,14 @@ pub struct ReadPhotoInput {
   // actor_operator_id provided as top-level arg
 }
 
+#[derive(Debug, Deserialize)]
+pub struct StagePhotoBytesInput {
+  pub photo_type: PhotoType,
+  pub extension: String,
+  pub bytes: Vec<u8>,
+  // actor_operator_id provided as top-level arg
+}
+
 #[tauri::command]
 pub async fn list_photos(
   state: State<'_, AppState>,
@@ -212,6 +220,44 @@ pub async fn read_photo_bytes(
   )
   .await?;
   photo_service::read_photo_bytes(&input.path).await
+}
+
+#[tauri::command]
+pub async fn stage_photo_bytes(
+  state: State<'_, AppState>,
+  actor_operator_id: String,
+  input: StagePhotoBytesInput,
+) -> Result<String, AppError> {
+  command_guard::ensure_not_migrating(&state).await?;
+  permission_service::require_role_by_id(
+    &state.pool,
+    &actor_operator_id,
+    &["admin", "keeper", "member"],
+  )
+  .await?;
+  let _guard = state.write_lock.lock().await;
+  let audit_request = json!({
+    "photo_type": input.photo_type.as_str(),
+    "extension": input.extension.clone(),
+    "bytes_len": input.bytes.len(),
+    "actor_operator_id": actor_operator_id.clone()
+  });
+  command_guard::run_with_audit(
+    &state.pool,
+    input.photo_type.audit_add(),
+    None,
+    Some(audit_request),
+    || async {
+      photo_service::stage_photo_bytes(
+        &state.pool,
+        input.photo_type.as_str(),
+        &input.extension,
+        input.bytes.clone(),
+      )
+      .await
+    },
+  )
+  .await
 }
 
 #[tauri::command]

@@ -17,7 +17,7 @@ import { RackPicker } from "~/components/common/pickers/rack-picker";
 import { ItemPicker } from "~/components/common/pickers/item-picker";
 /* SlotPicker replaced by SlotCascaderPicker inside dialogs; no direct import needed here */
 import { OperatorPicker } from "~/components/common/pickers/operator-picker";
-import { getSession } from "~/lib/auth";
+import { useSession } from "~/lib/auth";
 import { tauriInvoke,revealInFolder } from "~/lib/tauri";
 import { toast } from "sonner";
 import { CommonDialog } from "~/components/common/common-dialogs";
@@ -129,7 +129,7 @@ type StockExportResult = {
 export default function StockPage() {
   const navigate = useNavigate();
   const [searchParams, setSearchParams] = useSearchParams();
-  const actorOperatorId = (getSession() as any)?.actor_operator_id || "";
+  const actorOperatorId = useSession()?.actor_operator_id || "";
   const [slotRows, setSlotRows] = useState<StockBySlotRow[]>([]);
   const [itemRows, setItemRows] = useState<StockByItemRow[]>([]);
   const [loading, setLoading] = useState(false);
