@@ -1,6 +1,6 @@
 import * as React from "react"
 
-import { cn } from "~/lib/utils"
+import { cn, copyToClipboard } from "~/lib/utils"
 import { Tooltip, TooltipContent, TooltipTrigger } from "~/components/ui/tooltip"
 import { toast } from "sonner"
 
@@ -87,24 +87,14 @@ function TableCell({
     typeof children === "string" || typeof children === "number"
   const textValue = isPlainText ? String(children) : ""
   const isCentered = typeof className === "string" && className.includes("text-center")
-  const copyText = (value: string) => {
+  const copyText = async (value: string) => {
     if (!value) return
-    if (typeof navigator !== "undefined" && navigator.clipboard) {
-      navigator.clipboard.writeText(value)
+    const ok = await copyToClipboard(value)
+    if (ok) {
       toast.success("已复制")
-      return
+    } else {
+      toast.error("复制失败")
     }
-    if (typeof document === "undefined") return
-    const input = document.createElement("textarea")
-    input.value = value
-    input.setAttribute("readonly", "true")
-    input.style.position = "absolute"
-    input.style.left = "-9999px"
-    document.body.appendChild(input)
-    input.select()
-    document.execCommand("copy")
-    document.body.removeChild(input)
-    toast.success("已复制")
   }
 
   return (
@@ -132,9 +122,7 @@ function TableCell({
             <TooltipContent
               side="top"
               className="cursor-pointer"
-              onClick={() => {
-                copyText(textValue)
-              }}
+              onClick={() => void copyText(textValue)}
             >
               {textValue}
             </TooltipContent>
