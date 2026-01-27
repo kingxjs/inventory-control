@@ -109,22 +109,29 @@ async function getLatestGitTag(cwd) {
 }
 
 async function getCommits(cwd, range) {
-  const format = '%H%x09%s%x09%an';
+  const format = '%H%x00%an%x00%B%x00';
   const result = await runCapture(cwd, 'git', [
     'log',
     range,
     '--no-merges',
+    '-z',
     `--pretty=format:${format}`,
   ]);
-  const lines = result.stdout.split(/\r?\n/).filter(Boolean);
   const commits = [];
-  for (const line of lines) {
-    const [hash, subject, author] = line.split('\t');
-    if (!hash || !subject || !author) continue;
+  const parts = result.stdout.split('\u0000').filter(Boolean);
+  for (let i = 0; i + 2 < parts.length; i += 3) {
+    const hash = parts[i];
+    const author = parts[i + 1];
+    const message = parts[i + 2] ?? '';
+    if (!hash || !author) continue;
+    const lines = message.split(/\r?\n/);
+    const subject = (lines[0] ?? '').trim();
+    const bodyLines = lines.slice(1).map((line) => line.trim()).filter(Boolean);
     commits.push({
       hash,
       shortHash: hash.slice(0, 7),
       subject,
+      bodyLines,
       author,
     });
   }
@@ -214,6 +221,11 @@ function renderChangelogEntry({ version, date, sections }) {
     lines.push(`### ${section.title}`);
     for (const commit of section.commits) {
       lines.push(`- ${formatCommitTitle(commit)} (${commit.shortHash}, ${commit.author})`);
+      if (commit.bodyLines && commit.bodyLines.length > 0) {
+        for (const bodyLine of commit.bodyLines) {
+          lines.push(`  ${bodyLine}`);
+        }
+      }
     }
     lines.push('');
   }
@@ -294,4 +306,3 @@ async function runCaptureWithCode(cwd, command, args) {
     });
   });
 }
-

@@ -9,8 +9,10 @@ import { Label } from "~/components/ui/label";
 import { tauriInvoke, openFolder } from "~/lib/tauri";
 import { toast } from "sonner";
 import { AlertDialog, AlertDialogContent, AlertDialogHeader, AlertDialogTitle, AlertDialogDescription, AlertDialogFooter, AlertDialogAction, AlertDialogCancel } from "~/components/ui/alert-dialog";
+import { copyToClipboard } from "~/lib/utils";
 
 export default function SettingsPage() {
+  const isAndroid = typeof navigator !== "undefined" && /android/i.test(navigator.userAgent || "");
   const [loading, setLoading] = useState(false);
   const [settings, setSettings] = useState({
     rbac_enabled: false,
@@ -20,6 +22,16 @@ export default function SettingsPage() {
     slot_no_pad: 2,
     low_stock_threshold: 0,
   });
+
+  const copyText = async (text: string, label: string) => {
+    if (!text || text === "-") return;
+    const ok = await copyToClipboard(text);
+    if (ok) {
+      toast.success(`${label}已复制`);
+    } else {
+      toast.error("复制失败");
+    }
+  };
 
   const fetchSettings = async () => {
     setLoading(true);
@@ -54,25 +66,49 @@ export default function SettingsPage() {
   };
 
   const changeStorageRoot = async () => {
+    if (isAndroid) {
+      setPendingAction("storage");
+      setPendingManualEdit(true);
+      setManualPathInput(settings.storage_root || "");
+      setDialogOpen(true);
+      return;
+    }
     const selected = await open({ directory: true });
     if (!selected || Array.isArray(selected)) return;
     setPendingPath(selected);
+    setPendingManualEdit(false);
     setPendingAction("storage");
     setDialogOpen(true);
   };
 
   const changeExportsDir = async () => {
+    if (isAndroid) {
+      setPendingAction("exports");
+      setPendingManualEdit(true);
+      setManualPathInput(settings.exports_dir || "");
+      setDialogOpen(true);
+      return;
+    }
     const selected = await open({ directory: true });
     if (!selected || Array.isArray(selected)) return;
     setPendingPath(selected);
+    setPendingManualEdit(false);
     setPendingAction("exports");
     setDialogOpen(true);
   };
 
   const changeBackupsDir = async () => {
+    if (isAndroid) {
+      setPendingAction("backups");
+      setPendingManualEdit(true);
+      setManualPathInput(settings.backups_dir || "");
+      setDialogOpen(true);
+      return;
+    }
     const selected = await open({ directory: true });
     if (!selected || Array.isArray(selected)) return;
     setPendingPath(selected);
+    setPendingManualEdit(false);
     setPendingAction("backups");
     setDialogOpen(true);
   };
@@ -81,19 +117,22 @@ export default function SettingsPage() {
   const [dialogOpen, setDialogOpen] = useState(false);
   const [pendingPath, setPendingPath] = useState<string | null>(null);
   const [pendingAction, setPendingAction] = useState<"storage" | "exports" | "backups" | null>(null);
+  const [pendingManualEdit, setPendingManualEdit] = useState(false);
+  const [manualPathInput, setManualPathInput] = useState("");
 
   const performPendingChange = async () => {
-    if (!pendingPath || !pendingAction) return;
+    const nextPath = pendingManualEdit ? manualPathInput.trim() : pendingPath;
+    if (!nextPath || !pendingAction) return;
     setDialogOpen(false);
     try {
       if (pendingAction === "storage") {
-        await tauriInvoke("set_storage_root", { input: { new_path: pendingPath } });
+        await tauriInvoke("set_storage_root", { input: { new_path: nextPath } });
         toast.success("迁移完成");
       } else if (pendingAction === "exports") {
-        await tauriInvoke("set_exports_dir", { input: { new_path: pendingPath } });
+        await tauriInvoke("set_exports_dir", { input: { new_path: nextPath } });
         toast.success("导出目录已更新");
       } else if (pendingAction === "backups") {
-        await tauriInvoke("set_backups_dir", { input: { new_path: pendingPath } });
+        await tauriInvoke("set_backups_dir", { input: { new_path: nextPath } });
         toast.success("备份目录已更新");
       }
       await fetchSettings();
@@ -103,10 +142,16 @@ export default function SettingsPage() {
     } finally {
       setPendingPath(null);
       setPendingAction(null);
+      setPendingManualEdit(false);
+      setManualPathInput("");
     }
   };
   const handleOpenBackupsDir = async () => {
     try {
+      if (isAndroid) {
+        toast.message(`备份目录：\n${settings.backups_dir || "-"}`);
+        return;
+      }
       await openFolder(settings.backups_dir);
     } catch (err) {
       const message = err instanceof Error ? err.message : "打开失败";
@@ -220,7 +265,7 @@ export default function SettingsPage() {
             <div className="grid gap-2">
               <Label>当前目录</Label>
               <InputGroup>
-                <InputGroupInput value={settings.storage_root || "-"} readOnly />
+                <InputGroupInput value={settings.storage_root || "-"} readOnly onClick={() => void copyText(settings.storage_root || "", "存储目录")} />
                 <InputGroupAddon align="inline-end">
                   <InputGroupButton onClick={changeStorageRoot}>选择</InputGroupButton>
                 </InputGroupAddon>
@@ -229,7 +274,7 @@ export default function SettingsPage() {
             <div className="grid gap-2">
               <Label>导出目录</Label>
               <InputGroup>
-                <InputGroupInput value={settings.exports_dir || "-"} readOnly />
+                <InputGroupInput value={settings.exports_dir || "-"} readOnly onClick={() => void copyText(settings.exports_dir || "", "导出目录")} />
                 <InputGroupAddon align="inline-end">
                   <InputGroupButton onClick={changeExportsDir}>选择</InputGroupButton>
                 </InputGroupAddon>
@@ -238,7 +283,7 @@ export default function SettingsPage() {
             <div className="grid gap-2">
               <Label>备份目录</Label>
               <InputGroup>
-                <InputGroupInput value={settings.backups_dir || "-"} readOnly />
+                <InputGroupInput value={settings.backups_dir || "-"} readOnly onClick={() => void copyText(settings.backups_dir || "", "备份目录")} />
                 <InputGroupAddon align="inline-end">
                   <InputGroupButton onClick={changeBackupsDir}>选择</InputGroupButton>
                 </InputGroupAddon>
@@ -288,7 +333,12 @@ export default function SettingsPage() {
           <AlertDialogHeader>
             <AlertDialogTitle>{pendingAction === "storage" ? "确认迁移存储根目录" : pendingAction === "exports" ? "确认更新导出目录" : "确认更新备份目录"}</AlertDialogTitle>
             <AlertDialogDescription>
-              {pendingAction === "storage" ? (
+              {pendingManualEdit ? (
+                <div className="grid gap-2">
+                  <span>请输入目录绝对路径：</span>
+                  <Input value={manualPathInput} onChange={(e) => setManualPathInput(e.target.value)} />
+                </div>
+              ) : pendingAction === "storage" ? (
                 <>
                   你选择的目录：
                   <br />
@@ -308,11 +358,13 @@ export default function SettingsPage() {
             </AlertDialogDescription>
           </AlertDialogHeader>
           <AlertDialogFooter>
-            <AlertDialogCancel
+              <AlertDialogCancel
               onClick={() => {
                 setDialogOpen(false);
                 setPendingPath(null);
                 setPendingAction(null);
+                setPendingManualEdit(false);
+                setManualPathInput("");
               }}
             >
               取消
