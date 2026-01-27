@@ -1,6 +1,6 @@
 [package]
 name = "inventory-control"
-version = "0.1.9"
+version = "0.1.10"
 edition = "2021"
 
 [lib]
@@ -50,5 +50,6 @@ codegen-units = 1
 lto = true
 opt-level = "s"
 strip = true
+
 
 
