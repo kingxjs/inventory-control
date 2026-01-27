@@ -147,7 +147,7 @@ export default function StockPage() {
     defaultValues: {
       item_id: "",
       from_slot_id: "",
-      qty: "",
+      qty: 0,
       occurred_at: "",
       operator_id: actorOperatorId,
       note: "",
@@ -350,6 +350,8 @@ export default function StockPage() {
     if (mode === "outbound") {
       outboundForm.setValue("item_id", row.item_id);
       outboundForm.setValue("from_slot_id", slotId);
+      outboundForm.setValue("qty", Math.max(0, row.qty));
+
       setOutboundOpen(true);
     }
     if (mode === "move") {
@@ -388,12 +390,18 @@ export default function StockPage() {
         title="出库"
         description="物品出库"
         open={outboundOpen}
-        onOpenChange={setOutboundOpen}
+        onOpenChange={(open) => {
+          setOutboundOpen(open);
+          if (!open) {
+            outboundForm.setValue("qty", 0);
+          }
+        }}
         content={
           <OutboundForm
             form={outboundForm}
             onClose={() => {
               setOutboundOpen(false);
+              outboundForm.setValue("qty", 0);
               fetchStock(1, 1);
             }}
           />

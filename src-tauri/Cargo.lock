@@ -1684,7 +1684,7 @@ dependencies = [
 
 [[package]]
 name = "inventory-control"
-version = "0.1.7"
+version = "0.1.8"
 dependencies = [
  "argon2",
  "chrono",

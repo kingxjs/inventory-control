@@ -73,7 +73,7 @@ export type InboundFormValues = {
 export type OutboundFormValues = {
   item_id: string;
   from_slot_id: string;
-  qty: string;
+  qty: number;
   occurred_at: string;
   operator_id: string;
   note: string;

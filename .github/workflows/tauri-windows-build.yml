@@ -457,7 +457,7 @@ jobs:
             src-tauri/gen/android/app/build/outputs/apk/universal/release/InventoryControl-*.apk
           compression-level: 0
 
-  ccreate-release:
+  create-release:
     needs: [build-windows, build-macos, build-android]
     runs-on: ubuntu-latest
     steps:
@@ -474,7 +474,13 @@ jobs:
       - name: Get version from package.json
         id: get_version
         run: |
-          echo "version=$(node -p 'require("./package.json").version')" >> "$GITHUB_OUTPUT"
+          echo "version=$(node -p 'require(\"./package.json\").version')" >> "$GITHUB_OUTPUT"
+
+      - name: Generate release body from changelog
+        run: |
+          node scripts/changelog.js \
+            --version "${{ steps.get_version.outputs.version }}" \
+            --out-entry release-body.md
 
       - name: Download all artifacts
         uses: actions/download-artifact@v4
@@ -565,25 +571,6 @@ jobs:
           files: release-files/*
           fail_on_unmatched_files: true
           generate_release_notes: true
-          body: |
-            ## 📦 下载说明
-            
-            ### Windows
-            - `*.exe` - NSIS 安装程序（推荐）
-            - `*.msi` - MSI 安装程序
-            
-            ### macOS
-            - `*.dmg` - DMG 镜像文件（Intel + Apple Silicon 通用版）
-            
-            ### Android
-            - `*.apk` - 直接安装包（适用于侧载安装）
-            - `*.aab` - Google Play 上架包
-            
-            ## 🎉 新功能
-            
-            - 支持多平台：Windows、macOS、Android
-            - 完整的出入库管理功能
-            - 数据导入导出
-            - 审计日志
+          body_path: release-body.md
         env:
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
