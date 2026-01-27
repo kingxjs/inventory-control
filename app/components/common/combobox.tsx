@@ -98,12 +98,12 @@ export function Combobox({
             {selectedOption ? selectedLabel : placeholder}
           </span>
           <div className="ml-2 flex items-center gap-2">
-            {value !== "" && value !== "all" ? (
+            {value !== "" && value !== "all" && !disabled ? (
               <span
                 role="button"
                 tabIndex={-1}
                 aria-label="清除选择"
-                className="rounded-full p-1 text-slate-500 hover:text-slate-700 opacity-0 group-hover:opacity-100 group-focus:opacity-100 transition-opacity duration-150"
+                className="inline-flex h-6 w-6 items-center justify-center rounded-full p-1 text-slate-500 hover:text-slate-700 opacity-0 transition-opacity duration-150 group-hover:opacity-100 group-focus:opacity-100"
                 onClick={(e) => {
                   e.stopPropagation()
                   onChange("")
