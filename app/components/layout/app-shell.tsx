@@ -1,10 +1,10 @@
-import { useEffect, useRef, useState } from "react";
+import { useRef, useState } from "react";
 import { NavLink, Outlet, Link, useLocation, useNavigate } from "react-router";
 import { cn } from "~/lib/utils";
 import { Dialog, DialogContent, DialogDescription, DialogHeader, DialogTitle } from "~/components/ui/dialog";
 import { DropdownMenu, DropdownMenuTrigger, DropdownMenuContent, DropdownMenuItem } from "~/components/ui/dropdown-menu";
 import { ForceChangePasswordDialog } from "~/components/auth/force-change-password-dialog";
-import { clearSession, getSession, type Session } from "~/lib/auth";
+import { clearSession, useSession } from "~/lib/auth";
 import { tauriInvoke } from "~/lib/tauri";
 
 const navSections = [
@@ -46,7 +46,7 @@ export function AppShell() {
   const closeTimer = useRef<number | null>(null);
   const openTimer = useRef<number | null>(null);
   const [forceChangeOpen, setForceChangeOpen] = useState(false);
-  const [session, setSessionState] = useState<Session | null>(null);
+  const session = useSession();
   const location = useLocation();
   const navigate = useNavigate();
   const breadcrumbMap: Record<string, string> = {
@@ -63,17 +63,12 @@ export function AppShell() {
   const path = location.pathname === "/" ? "/" : location.pathname.replace(/\/$/, "");
   const currentLabel = breadcrumbMap[path] ?? "页面";
 
-  useEffect(() => {
-    setSessionState(getSession());
-  }, []);
-
   const handleLogout = () => {
     const actorId = session?.actor_operator_id;
     if (actorId) {
       tauriInvoke("logout", { actorOperatorId: actorId }).catch(() => null);
     }
     clearSession();
-    setSessionState(null);
     setAccountOpen(false);
     navigate("/login", { replace: true });
   };

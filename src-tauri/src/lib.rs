@@ -99,6 +99,7 @@ pub fn run() {
             item_cmd::set_item_status,
             photo_cmd::list_photos,
             photo_cmd::add_photos,
+            photo_cmd::stage_photo_bytes,
             photo_cmd::read_photo_bytes,
             photo_cmd::remove_photo,
             photo_cmd::reorder_photos,
