@@ -23,10 +23,19 @@ type Props = {
 };
 
 export default function OutboundForm({ onClose, form: externalForm }: Props) {
-  const form = externalForm ?? useForm<OutboundFormValues>({ defaultValues: { item_id: "", from_slot_id: "", qty: "", occurred_at: "", operator_id: getSession()?.actor_operator_id || "", note: "" } });
+  const form = externalForm ?? useForm<OutboundFormValues>({ defaultValues: { item_id: "", from_slot_id: "", qty: 0, occurred_at: "", operator_id: getSession()?.actor_operator_id || "", note: "" } });
   const [localSource, setLocalSource] = useState<SlotPickerValue>({ warehouseId: "", rackId: "", levelNo: "", slotId: form.getValues("from_slot_id") || "" });
   const source = localSource;
   const setSource = setLocalSource;
+  const stockQty = Math.max(0, Number(form.getValues("qty") ?? 0));
+  const [outboundQty, setOutboundQty] = useState<number>(0);
+
+  useEffect(() => {
+    // 当库存数量变化时，重置出库数量，避免沿用旧值
+    setOutboundQty(0);
+    // 仅依赖库存数量即可
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [stockQty]);
 
   const [localSelectedPaths, setLocalSelectedPaths] = useState<string[]>([]);
   const [localPreviewUrls, setLocalPreviewUrls] = useState<Record<string, string>>({});
@@ -69,12 +78,14 @@ export default function OutboundForm({ onClose, form: externalForm }: Props) {
     try {
       const ok = await form.trigger();
       if (!ok) return false;
-      const values = form.getValues();
+      // const values = form.getValues();
+      // 出库数量使用本地 outboundQty，库存上限来自 form.qty
       // implement outbound submit if needed; placeholder calls
       // TODO: call tauriInvoke("create_outbound", ...)
       toast.success("出库提交（本地实现）");
       if (onClose) onClose();
-      form.reset({ item_id: "", from_slot_id: "", qty: "", occurred_at: "", operator_id: "", note: "" });
+      form.reset({ item_id: "", from_slot_id: "", qty: 0, occurred_at: "", operator_id: "", note: "" });
+      setOutboundQty(0);
       return true;
     } catch (err) {
       const message = err instanceof Error ? err.message : "出库失败";
@@ -104,11 +115,30 @@ export default function OutboundForm({ onClose, form: externalForm }: Props) {
             <FormMessage />
           </FormItem>
         )} />
-        <FormField control={form.control} name="qty" rules={{ validate: (value) => (Number(value) > 0 ? true : "请输入有效数量") }} render={({ field }) => (
+        <FormField control={form.control} name="qty" rules={{ validate: () => {
+          if (stockQty <= 0) return "当前库存不足";
+          if (!(outboundQty > 0)) return "请输入有效数量";
+          return outboundQty <= stockQty ? true : `数量不能超过库存（${stockQty}）`;
+        } }} render={() => (
           <FormItem className="grid gap-2">
             <FormLabel>数量</FormLabel>
             <FormControl>
-              <Input placeholder="请输入数量" type="number" {...field} />
+              <Input
+                placeholder={`最多 ${stockQty}`}
+                type="number"
+                min={1}
+                max={stockQty}
+                value={outboundQty}
+                onChange={(event) => {
+                  const nextValue = Number(event.target.value);
+                  if (!Number.isFinite(nextValue)) {
+                    setOutboundQty(0);
+                    return;
+                  }
+                  const clamped = Math.min(Math.max(nextValue, 0), stockQty);
+                  setOutboundQty(clamped);
+                }}
+              />
             </FormControl>
             <FormMessage />
           </FormItem>
