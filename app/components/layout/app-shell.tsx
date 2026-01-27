@@ -84,7 +84,7 @@ export function AppShell() {
       <div className="mx-auto flex h-screen min-h-0 max-w-[1600px] gap-6 px-4 py-6 lg:px-6">
         <aside className="hidden w-64 flex-col overflow-y-scroll rounded-3xl border border-slate-200/70 bg-white/80 p-6 shadow-sm backdrop-blur lg:flex">
           <div className="flex items-center gap-3">
-            <div className="flex h-10 w-10 items-center justify-center rounded-2xl bg-slate-900 text-sm font-semibold text-white">INV</div>
+            <div className="flex h-10 w-10 items-center justify-center rounded-2xl bg-[rgba(15,23,42,1)] text-sm font-semibold text-white">INV</div>
             <div>
               <p className="text-sm font-semibold">出入库登记</p>
               <p className="text-xs text-slate-500">Inventory Control</p>
@@ -96,7 +96,17 @@ export function AppShell() {
                 <p className="text-xs font-semibold uppercase tracking-wider text-slate-400">{section.title}</p>
                 <div className="flex flex-col gap-1">
                   {section.items.map((item) => (
-                    <NavLink key={item.to} to={item.to} className={({ isActive }) => cn("rounded-xl px-3 py-2 text-sm font-medium text-slate-600 transition hover:bg-slate-100 hover:text-slate-900", isActive && "bg-slate-900 text-white hover:bg-slate-900 hover:text-white")}>
+                    <NavLink
+                      key={item.to}
+                      to={item.to}
+                      className={({ isActive }) =>
+                        cn(
+                          "rounded-xl px-3 py-2 text-sm font-medium text-slate-600 transition hover:bg-[rgba(241,245,249,1)] hover:text-[rgba(15,23,42,1)]",
+                          isActive &&
+                            "bg-[rgba(15,23,42,1)] text-white hover:bg-[rgba(15,23,42,1)] hover:text-white"
+                        )
+                      }
+                    >
                       {item.label}
                     </NavLink>
                   ))}
@@ -122,7 +132,7 @@ export function AppShell() {
                 <DropdownMenuTrigger asChild>
                   <button
                     type="button"
-                    className="flex items-center gap-2 rounded-full cursor-pointer bg-slate-900 px-4 py-2 text-sm font-medium text-white transition hover:bg-slate-800"
+                    className="flex items-center gap-2 rounded-full cursor-pointer bg-[rgba(15,23,42,1)] px-4 py-2 text-sm font-medium text-white transition hover:bg-[rgba(30,41,59,1)]"
                     onMouseEnter={() => {
                       // 清除关闭定时器
                       if (closeTimer.current) {
@@ -193,7 +203,17 @@ export function AppShell() {
             {navSections
               .flatMap((section) => section.items)
               .map((item) => (
-                <NavLink key={item.to} to={item.to} className={({ isActive }) => cn("rounded-full px-4 py-2 transition hover:bg-slate-100 hover:text-slate-900", isActive && "bg-slate-900 text-white hover:bg-slate-900 hover:text-white")}>
+                <NavLink
+                  key={item.to}
+                  to={item.to}
+                  className={({ isActive }) =>
+                    cn(
+                      "rounded-full px-4 py-2 transition hover:bg-[rgba(241,245,249,1)] hover:text-[rgba(15,23,42,1)]",
+                      isActive &&
+                        "bg-[rgba(15,23,42,1)] text-white hover:bg-[rgba(15,23,42,1)] hover:text-white"
+                    )
+                  }
+                >
                   {item.label}
                 </NavLink>
               ))}
