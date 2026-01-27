@@ -367,7 +367,9 @@ jobs:
           file $RUNNER_TEMP/keystore.jks
 
       - name: Build Android APK and AAB
-        run: pnpm tauri android build --apk --aab
+        run: |
+          pnpm tauri icon src-tauri/icons/icon.png
+          pnpm tauri android build --apk --aab --ci
         env:
           CARGO_INCREMENTAL: 0
           CARGO_PROFILE_RELEASE_LTO: false

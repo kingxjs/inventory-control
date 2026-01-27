@@ -7,11 +7,15 @@ export function cn(...inputs: ClassValue[]) {
 
 export async function copyToClipboard(text: string) {
   if (!text) return false
-  try {
-    if (typeof navigator !== "undefined" && navigator.clipboard?.writeText) {
+  if (typeof navigator !== "undefined" && navigator.clipboard?.writeText) {
+    try {
       await navigator.clipboard.writeText(text)
       return true
+    } catch {
+      // 在 Android WebView 中可能因为权限/上下文限制失败，继续走降级路径。
     }
+  }
+  try {
     if (typeof document !== "undefined") {
       const textarea = document.createElement("textarea")
       textarea.value = text
@@ -20,9 +24,9 @@ export async function copyToClipboard(text: string) {
       document.body.appendChild(textarea)
       textarea.focus()
       textarea.select()
-      document.execCommand("copy")
+      const ok = document.execCommand("copy")
       document.body.removeChild(textarea)
-      return true
+      return ok
     }
   } catch {
     return false
