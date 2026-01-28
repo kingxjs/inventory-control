@@ -61,6 +61,11 @@ export function SlotCascaderPicker({ label, value, onChange, disabled }: Props) 
         const lvl = single.level_no ? single.level_no.toString() : "";
         // 先更新本地状态并通知父组件。localValue 会立刻传给子控件，减少竞态。
         const nextFull = { warehouseId: wh, rackId: rk, levelNo: lvl, slotId: value.slotId || "" };
+
+        localValue.rackId = rk;
+        localValue.warehouseId = wh;
+        localValue.levelNo = lvl;
+        localValue.slotId = value.slotId;
         // 标记跳过下一次来自 props 的同步，防止父组件短时传回空值覆盖
         skipSyncRef.current = true;
         syncTimerRef.current = window.setTimeout(() => {

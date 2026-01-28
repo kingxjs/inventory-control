@@ -18,7 +18,7 @@ import { ItemPicker } from "~/components/common/pickers/item-picker";
 /* SlotPicker replaced by SlotCascaderPicker inside dialogs; no direct import needed here */
 import { OperatorPicker } from "~/components/common/pickers/operator-picker";
 import { useSession } from "~/lib/auth";
-import { tauriInvoke,revealInFolder } from "~/lib/tauri";
+import { tauriInvoke, revealInFolder } from "~/lib/tauri";
 import { toast } from "sonner";
 import { CommonDialog } from "~/components/common/common-dialogs";
 import InboundForm from "~/components/stock/forms/inbound-form";
@@ -69,59 +69,6 @@ type StockByItemResult = {
   total: number;
 };
 
-type ItemRow = {
-  id: string;
-  item_code: string;
-  name: string;
-  status: string;
-};
-
-type ItemListResult = {
-  items: ItemRow[];
-  total: number;
-};
-
-type OperatorRow = {
-  id: string;
-  username: string;
-  display_name: string;
-  status: string;
-  role: string;
-  created_at: number;
-};
-
-type OperatorListResult = {
-  items: OperatorRow[];
-  total: number;
-};
-
-type RackRow = {
-  id: string;
-  code: string;
-  name: string;
-  warehouse_id?: string | null;
-  status: string;
-  level_count: number;
-};
-
-type RackListResult = {
-  items: RackRow[];
-  total: number;
-};
-
-type WarehouseRow = {
-  id: string;
-  code: string;
-  name: string;
-  status: string;
-  created_at: number;
-};
-
-type WarehouseListResult = {
-  items: WarehouseRow[];
-  total: number;
-};
-
 type StockExportResult = {
   file_path: string;
 };
@@ -148,6 +95,16 @@ export default function StockPage() {
       item_id: "",
       from_slot_id: "",
       qty: 0,
+      occurred_at: "",
+      operator_id: actorOperatorId,
+      note: "",
+    },
+  });
+  const inboundForm = useForm<InboundFormValues>({
+    defaultValues: {
+      item_id: "",
+      to_slot_id: "",
+      qty: "",
       occurred_at: "",
       operator_id: actorOperatorId,
       note: "",
@@ -341,7 +298,7 @@ export default function StockPage() {
   }, [keyword, warehouseIdFilter, rackFilter, slotIdFilter, itemFilter, operatorFilter, status]);
 
   const selectedStockRow = slotRows.find((row) => `${row.item_code}|${row.slot_code}` === selectedStockKey) || null;
-  const applyStockRow = async (row: StockBySlotRow | StockByItemRow, mode: "outbound" | "move" | "count") => {
+  const applyStockRow = async (row: StockBySlotRow | StockByItemRow, mode: "outbound" | "inbound" | "move" | "count") => {
     const levelMatch = row.slot_code.match(/-L(\d+)-S/);
     const levelNo = levelMatch ? levelMatch[1] : "";
     // 尝试解析 slot id（避免后续重复解析）
@@ -353,6 +310,12 @@ export default function StockPage() {
       outboundForm.setValue("qty", Math.max(0, row.qty));
 
       setOutboundOpen(true);
+    }
+    if (mode === "inbound") {
+      console.info(levelNo)
+      inboundForm.setValue("item_id", row.item_id);
+      inboundForm.setValue("to_slot_id", slotId);
+      setInboundOpen(true);
     }
     if (mode === "move") {
       moveForm.setValue("item_id", row.item_id);
@@ -379,6 +342,7 @@ export default function StockPage() {
         onOpenChange={setInboundOpen}
         content={
           <InboundForm
+            form={inboundForm}
             onClose={() => {
               setInboundOpen(false);
               fetchStock(1, 1);
@@ -402,7 +366,7 @@ export default function StockPage() {
             onClose={() => {
               setOutboundOpen(false);
               outboundForm.setValue("qty", 0);
-              fetchStock(1, 1);
+              fetchStock(pageIndexSlot, pageIndexItem);
             }}
           />
         }
@@ -417,7 +381,7 @@ export default function StockPage() {
             form={moveForm}
             onClose={() => {
               setMoveOpen(false);
-              fetchStock(1, 1);
+              fetchStock(pageIndexSlot, pageIndexItem);
             }}
           />
         }
@@ -432,7 +396,7 @@ export default function StockPage() {
             form={countForm}
             onClose={() => {
               setCountOpen(false);
-              fetchStock(1, 1);
+              fetchStock(pageIndexSlot, pageIndexItem);
             }}
           />
         }
@@ -649,6 +613,18 @@ export default function StockPage() {
                           }}
                         >
                           出库
+                        </Button>
+                        <Button
+                          variant="ghost"
+                          size="sm"
+                          disabled={row.qty <= 0}
+                          onClick={() => {
+                            const key = `${row.item_code}|${row.slot_code}`;
+                            setSelectedStockKey(key);
+                            applyStockRow(row, "inbound");
+                          }}
+                        >
+                          入库
                         </Button>
                         <DropdownMenu>
                           <DropdownMenuTrigger asChild>

@@ -29,7 +29,7 @@ export default function InboundForm({ onClose, form: externalForm }: Props) {
   const form = externalForm ?? useForm<InboundFormValues>({
     defaultValues: { item_id: "", to_slot_id: "", qty: "", occurred_at: "", operator_id: actorOperatorId, note: "" },
   });
-  const [localTarget, setLocalTarget] = useState<SlotPickerValue>({ warehouseId: "", rackId: "", levelNo: "", slotId: "" });
+  const [localTarget, setLocalTarget] = useState<SlotPickerValue>({ warehouseId:  "", rackId: "", levelNo:  "", slotId: form.getValues("to_slot_id") || "" });
   const target = localTarget;
   const setTarget = setLocalTarget;
 
