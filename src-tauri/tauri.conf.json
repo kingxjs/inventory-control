@@ -4,7 +4,7 @@
   "version": "0.1.12",
   "build": {
     "beforeDevCommand": "pnpm dev",
-    "beforeBuildCommand": "pnpm build",
+    "beforeBuildCommand": "pnpm build && node scripts/flatten-layer-css.js",
     "devUrl": "http://localhost:5173",
     "frontendDist": "../build/client"
   },
