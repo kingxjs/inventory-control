@@ -9,7 +9,7 @@ const isTauri =
   !!process.env.TAURI_DEBUG;
 
 export default defineConfig(({ command }) => ({
-  base: isTauri && command === "build" ? "./" : "/",
+  base: command === "build" ? "./" : "/",
   plugins: [tailwindcss(), reactRouter(), tsconfigPaths()],
   server: isTauri ? { hmr: false } : undefined,
 }));
