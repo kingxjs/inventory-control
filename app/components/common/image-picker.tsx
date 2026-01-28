@@ -250,7 +250,7 @@ export function ImagePicker({
                 )}
                 <button
                   type="button"
-                  className="absolute right-2 top-2 inline-flex h-7 w-7 items-center justify-center rounded-full bg-black/70 text-white opacity-100 transition md:h-6 md:w-6 md:opacity-0 md:group-hover:opacity-100"
+                  className="absolute right-2 top-2 inline-flex h-7 w-7 items-center justify-center rounded-full bg-black/70 text-white opacity-100 transition md:h-6 md:w-6 lg:opacity-0 lg:group-hover:opacity-100"
                   onClick={() => handleRemove(path)}
                   hidden={isPreviewMode && !onRemove}
                   aria-label="删除图片"
