@@ -371,6 +371,7 @@ jobs:
           pnpm tauri icon src-tauri/icons/icon.png
           pnpm tauri android build --apk --aab --ci
         env:
+          ANDROID_WEBVIEW_COMPAT: "1"
           CARGO_INCREMENTAL: 0
           CARGO_PROFILE_RELEASE_LTO: false
           CARGO_PROFILE_RELEASE_CODEGEN_UNITS: 16
