@@ -32,7 +32,6 @@ export function SlotPicker({ value, onChange, warehouseId, rackId, levelNo, disa
   const [initialOptions, setInitialOptions] = useState<{ node?: SlotRow; value: string; label: ReactNode; searchLabel?: string }[]>([]);
 
   async function fetchSlots(keyword: string | undefined, pageSize = 200) {
-    console.info(1,rackId ,warehouseId);
     // 需要至少有 rackId 或 warehouseId 以便限定范围
     if (!rackId && !warehouseId) return [];
     try {
