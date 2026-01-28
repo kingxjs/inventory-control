@@ -1,10 +1,10 @@
 {
   "$schema": "https://tauri.app/schema.json",
   "productName": "出入库登记系统",
-  "version": "0.1.12",
+  "version": "0.1.13",
   "build": {
     "beforeDevCommand": "pnpm dev",
-    "beforeBuildCommand": "pnpm build && node scripts/flatten-layer-css.js",
+    "beforeBuildCommand": "pnpm build",
     "devUrl": "http://localhost:5173",
     "frontendDist": "../build/client"
   },

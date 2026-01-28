@@ -211,8 +211,8 @@ export default function DashboardPage() {
                 <ChartContainer
                   className="h-56 w-full aspect-auto"
                   config={{
-                    inbound: { label: "入库", color: "var(--chart-1)" },
-                    outbound: { label: "出库", color: "var(--chart-2)" },
+                    inbound: { label: "入库", color: "rgb(var(--chart-1))" },
+                    outbound: { label: "出库", color: "rgb(var(--chart-2))" },
                   }}
                 >
                   <BarChart data={trendData} margin={{ left: 0, right: 8 }}>
@@ -241,7 +241,7 @@ export default function DashboardPage() {
               {overview && stockData.length > 0 ? (
                 <ChartContainer
                   className="h-56 w-full aspect-auto"
-                  config={{ total_qty: { label: "库存量", color: "var(--chart-3)" } }}
+                  config={{ total_qty: { label: "库存量", color: "rgb(var(--chart-3))" } }}
                 >
                   <BarChart data={stockData} layout="vertical" margin={{ left: 8, right: 16 }}>
                     <CartesianGrid horizontal={false} />
