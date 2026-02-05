@@ -1684,7 +1684,7 @@ dependencies = [
 
 [[package]]
 name = "inventory-control"
-version = "0.1.15"
+version = "0.1.16"
 dependencies = [
  "argon2",
  "chrono",
@@ -1697,6 +1697,7 @@ dependencies = [
  "tauri",
  "tauri-build",
  "tauri-plugin-dialog",
+ "tauri-plugin-share",
  "tempfile",
  "thiserror 1.0.69",
  "tokio",
@@ -4224,6 +4225,18 @@ dependencies = [
  "thiserror 2.0.18",
  "toml 0.9.11+spec-1.1.0",
  "url",
+]
+
+[[package]]
+name = "tauri-plugin-share"
+version = "2.0.5"
+source = "registry+https://github.com/rust-lang/crates.io-index"
+checksum = "737d8d06876c9a40af11cbcfe48988e653a1193ab149e739a48ca6cda26bf4b6"
+dependencies = [
+ "serde",
+ "tauri",
+ "tauri-plugin",
+ "thiserror 1.0.69",
 ]
 
 [[package]]

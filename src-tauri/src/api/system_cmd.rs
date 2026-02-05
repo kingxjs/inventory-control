@@ -187,31 +187,3 @@ fn emit_migration_progress(
     json!({ "step": step, "status": status, "message": message }),
   );
 }
-
-#[derive(Debug, Deserialize)]
-pub struct ShareFileInput {
-  pub file_path: String,
-}
-
-#[tauri::command]
-pub async fn share_file(
-  _state: State<'_, AppState>,
-  input: ShareFileInput,
-) -> Result<(), AppError> {
-  // 仅在移动端（Android/iOS）启用分享功能
-  #[cfg(any(target_os = "android", target_os = "ios"))]
-  {
-    // 使用系统分享功能
-    // TODO: 集成 tauri-plugin-share 或使用原生分享 API
-    // 目前返回成功，前端会处理文件路径
-    Ok(())
-  }
-  
-  #[cfg(not(any(target_os = "android", target_os = "ios")))]
-  {
-    Err(AppError::new(
-      ErrorCode::ValidationError,
-      "分享功能仅在移动端可用"
-    ))
-  }
-}

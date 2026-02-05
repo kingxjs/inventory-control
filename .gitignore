@@ -17,3 +17,4 @@
 *.pfx.base64
 src-tauri/android/keystore.jks
 .codex/
+.copilot/
