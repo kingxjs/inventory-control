@@ -595,10 +595,10 @@ export default function RacksPage() {
             <DialogTitle>库位详情</DialogTitle>
             <DialogDescription>
               {activeRack ? (
-                <div className="flex items-center gap-2">
+                <span className="inline-flex items-center gap-2">
                   <Badge variant="secondary">{activeRack.code}</Badge>
                   <span className="truncate">{activeRack.name}</span>
-                </div>
+                </span>
               ) : (
                 "库位列表"
               )}

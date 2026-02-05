@@ -16,15 +16,24 @@ function Input({ className, type, value, onChange, disabled, readOnly, ...props 
     }
   }
 
-  const clearRightClass = type === "number" ? "right-7" : "right-2"
+  // 从 props 中提取 onInput 和 inputMode，避免传递到 restProps
+  const { onInput: userOnInput, inputMode: userInputMode, ...restProps } = props
+
+  // 将 type="number" 转换为 type="text" + inputMode="numeric"
+  // 这样可以保留无效输入的内容，让表单校验正确工作
+  // 同时在移动端显示数字键盘
+  const actualType = type === "number" ? "text" : type
+  const actualInputMode = type === "number" ? (userInputMode || "numeric") : userInputMode
 
   return (
     <div className="relative inline-block w-full group">
       <input
-        type={type}
+        type={actualType}
+        inputMode={actualInputMode}
         data-slot="input"
         value={value}
         onChange={onChange}
+        onInput={userOnInput}
         disabled={disabled}
         readOnly={readOnly}
         className={cn(
@@ -34,7 +43,7 @@ function Input({ className, type, value, onChange, disabled, readOnly, ...props 
           showClear ,
           className
         )}
-        {...props}
+        {...restProps}
       />
       <button
         type="button"
@@ -42,7 +51,7 @@ function Input({ className, type, value, onChange, disabled, readOnly, ...props 
         aria-label="清除输入"
         onClick={handleClear}
         className={cn(
-          `absolute ${clearRightClass} inset-y-0 flex items-center justify-center rounded-full p-1 text-muted-foreground hover:text-foreground focus:outline-none transition-opacity duration-150`,
+          "absolute right-2 inset-y-0 flex items-center justify-center rounded-full p-1 text-muted-foreground hover:text-foreground focus:outline-none transition-opacity duration-150",
           // 仅当有值且可用时允许显示，并在悬浮或聚焦时可见
           showClear
             ? "opacity-0 group-hover:opacity-100 group-focus-within:opacity-100 pointer-events-none group-hover:pointer-events-auto group-focus-within:pointer-events-auto"
