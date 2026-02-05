@@ -410,7 +410,7 @@ export default function ItemsPage() {
                         <FormItem className="grid gap-2">
                           <FormLabel htmlFor="item-name">物品名称</FormLabel>
                           <FormControl>
-                            <Input id="item-name" placeholder="新物品" {...field} />
+                            <Input id="item-name" placeholder="新物品" autoFocus {...field} />
                           </FormControl>
                           <FormMessage />
                         </FormItem>

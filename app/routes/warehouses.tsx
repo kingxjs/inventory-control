@@ -124,7 +124,7 @@ export default function WarehousesPage() {
   const openEdit = (row: WarehouseRow) => {
     setEditRow(row)
     form.reset({
-      codeSuffix: row.code.replace(/^W+/i, ""),
+      codeSuffix: row.code,
       name: row.name,
     })
     setFormOpen(true)
@@ -135,15 +135,18 @@ export default function WarehousesPage() {
     value.trim().replace(/^W+/i, "").replace(/\D/g, "")
   const formatSuffix = (value: string) => {
     const digits = normalizeSuffix(value)
-    return digits ? digits.padStart(2, "0") : ""
+    return digits
   }
   const formattedSuffix = formatSuffix(codeSuffix || "")
-  const warehouseCode = formattedSuffix ? `W${formattedSuffix}` : ""
+  const warehouseCode = formattedSuffix
 
   const handleSubmit = async (values: WarehouseFormValues) => {
     const formattedCode = formatSuffix(values.codeSuffix || "")
-    const warehouseCode = formattedCode ? `W${formattedCode}` : ""
-    const name = values.name.trim()
+    if (!formattedCode) {
+      toast.error("仓库编号不能为空")
+      return
+    }
+    const name = values.name.trim() || formattedCode
     try {
       if (editRow) {
         await tauriInvoke("update_warehouse", {
@@ -156,7 +159,7 @@ export default function WarehousesPage() {
       } else {
         await tauriInvoke("create_warehouse", {
           input: {
-            code: warehouseCode,
+            code: formattedCode,
             name,
           },
         })
@@ -246,7 +249,7 @@ export default function WarehousesPage() {
                         <FormControl>
                           <Input
                             id="warehouse-code"
-                            placeholder="例如 01"
+                            placeholder="例如 1"
                             disabled={!!editRow}
                             type="number"
                             min={1}
@@ -255,9 +258,6 @@ export default function WarehousesPage() {
                             {...field}
                           />
                         </FormControl>
-                        <p className="text-xs text-slate-500">
-                          完整编号：{warehouseCode || "W"}
-                        </p>
                         <FormMessage />
                       </FormItem>
                     )}
@@ -266,14 +266,13 @@ export default function WarehousesPage() {
                     control={form.control}
                     name="name"
                     rules={{
-                      validate: (value) =>
-                        value.trim() ? true : "请输入仓库名称",
+                      validate: () => true,
                     }}
                     render={({ field }) => (
                       <FormItem className="grid gap-2">
                         <FormLabel htmlFor="warehouse-name">仓库名称</FormLabel>
                         <FormControl>
-                          <Input id="warehouse-name" placeholder="主仓库" {...field} />
+                          <Input id="warehouse-name" placeholder="选填，默认使用编号作为名称" {...field} />
                         </FormControl>
                         <FormMessage />
                       </FormItem>

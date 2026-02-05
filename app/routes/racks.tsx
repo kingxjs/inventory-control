@@ -169,10 +169,10 @@ export default function RacksPage() {
   const normalizeSuffix = (value: string) => value.trim().replace(/^R+/i, "").replace(/\D/g, "");
   const formatSuffix = (value: string) => {
     const digits = normalizeSuffix(value);
-    return digits ? digits.padStart(2, "0") : "";
+    return digits;
   };
   const formattedSuffix = formatSuffix(codeSuffix || "");
-  const rackCode = formattedSuffix ? `R${formattedSuffix}` : "";
+  const rackCode = formattedSuffix;
   const warehouseMap = new Map(warehouses.map((warehouse) => [warehouse.id, warehouse]));
   const warehouseLabel = (id?: string | null) => {
     if (!id) return "-";
@@ -189,7 +189,7 @@ export default function RacksPage() {
 
   const handleCreate = async (values: RackFormValues) => {
     const formattedCode = formatSuffix(values.codeSuffix);
-    const rackCode = formattedCode ? `R${formattedCode}` : "";
+    const rackCode = formattedCode;
     const normalizedName = values.name.trim() || rackCode;
     try {
       await tauriInvoke("create_rack", {
@@ -247,7 +247,7 @@ export default function RacksPage() {
   const openEdit = (row: RackRow) => {
     setEditRack(row);
     form.reset({
-      codeSuffix: row.code.replace(/^R+/i, ""),
+      codeSuffix: row.code,
       name: row.name,
       warehouseId: row.warehouse_id || "",
       location: row.location || "",
@@ -390,7 +390,7 @@ export default function RacksPage() {
                         <FormItem className="grid gap-2">
                           <FormLabel htmlFor="rack-code">货架编号</FormLabel>
                           <FormControl>
-                            <Input id="rack-code" placeholder="例如 04" disabled={!!editRack} type="number" min={1} inputMode="numeric" pattern="[0-9]*" {...field} />
+                            <Input id="rack-code" placeholder="例如 4" disabled={!!editRack} type="number" min={1} inputMode="numeric" pattern="[0-9]*" {...field} />
                           </FormControl>
                           <FormMessage />
                         </FormItem>
@@ -406,30 +406,13 @@ export default function RacksPage() {
                         <FormItem className="grid gap-2">
                           <FormLabel htmlFor="rack-name">货架名称</FormLabel>
                           <FormControl>
-                            <Input id="rack-name" placeholder="新建货架" {...field} />
+                            <Input id="rack-name" placeholder="选填，默认使用编号作为名称" {...field} />
                           </FormControl>
                           <FormMessage />
                         </FormItem>
                       )}
                     />
                   </div>
-                  <p className="text-xs text-slate-500">完整编号：{rackCode || "R"}</p>
-                  <FormField
-                    control={form.control}
-                    name="location"
-                    rules={{
-                      validate: () => true,
-                    }}
-                    render={({ field }) => (
-                      <FormItem className="grid gap-2">
-                        <FormLabel htmlFor="rack-location">货架位置</FormLabel>
-                        <FormControl>
-                          <Input id="rack-location" placeholder="例如 A区-1排" {...field} />
-                        </FormControl>
-                        <FormMessage />
-                      </FormItem>
-                    )}
-                  />
                   <div className="grid gap-4 md:grid-cols-2">
                     <FormField
                       control={form.control}
@@ -464,6 +447,22 @@ export default function RacksPage() {
                       )}
                     />
                   </div>
+                  <FormField
+                    control={form.control}
+                    name="location"
+                    rules={{
+                      validate: () => true,
+                    }}
+                    render={({ field }) => (
+                      <FormItem className="grid gap-2">
+                        <FormLabel htmlFor="rack-location">货架位置</FormLabel>
+                        <FormControl>
+                          <Input id="rack-location" placeholder="非必填，例如 A区-1排" {...field} />
+                        </FormControl>
+                        <FormMessage />
+                      </FormItem>
+                    )}
+                  />
                   <ConfirmButton className="w-full" label="保存" confirmText={editRack ? "确认保存货架变更？" : "确认创建货架？"} onBeforeConfirmOpen={() => form.trigger()} onConfirm={() => form.handleSubmit(editRack ? handleUpdate : handleCreate)()} />
                 </form>
               </Form>

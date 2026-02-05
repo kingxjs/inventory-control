@@ -106,5 +106,5 @@ fn normalize_warehouse_code(code: &str) -> Result<String, AppError> {
       "仓库编号只能输入数字",
     ));
   }
-  Ok(format!("W{:0>2}", suffix))
+  Ok(suffix.to_string())
 }
