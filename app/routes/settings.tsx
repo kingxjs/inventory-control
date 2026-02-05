@@ -227,7 +227,13 @@ export default function SettingsPage() {
       const result = await tauriInvoke<string>("backup_db", {
         input: {},
       });
-      toast.success(`备份完成：${result}`);
+      const { isMobile, shareFile } = await import("~/lib/tauri");
+      if (isMobile()) {
+        await shareFile(result);
+        toast.success("已打开分享菜单");
+      } else {
+        toast.success(`备份完成：${result}`);
+      }
     } catch (err) {
       const message = err instanceof Error ? err.message : "备份失败";
       toast.error(message);

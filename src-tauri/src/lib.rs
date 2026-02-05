@@ -15,6 +15,7 @@ use tokio::sync::Mutex;
 pub fn run() {
     tauri::Builder::default()
         .plugin(tauri_plugin_dialog::init())
+        .plugin(tauri_plugin_share::init())
         .setup(|app| {
             // Android 平台不需要启动屏幕
             #[cfg(not(target_os = "android"))]
@@ -117,7 +118,6 @@ pub fn run() {
             system_cmd::set_storage_root,
             system_cmd::set_exports_dir,
             system_cmd::set_backups_dir,
-            system_cmd::share_file,
             // 库存管理相关命令
             stock_cmd::list_stock_by_slot,
             stock_cmd::list_stock_by_item,

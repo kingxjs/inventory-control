@@ -153,7 +153,13 @@ pub async fn backup_db(pool: &SqlitePool) -> Result<String, AppError> {
     return Err(AppError::new(ErrorCode::NotFound, "数据库文件不存在"));
   }
 
+  // 移动端使用临时目录，桌面端使用备份目录
+  #[cfg(any(target_os = "android", target_os = "ios"))]
+  let backups_dir = std::env::temp_dir();
+  
+  #[cfg(not(any(target_os = "android", target_os = "ios")))]
   let backups_dir = root.join("backups");
+  
   fs::ensure_dir(&backups_dir)?;
   let now = Utc::now().timestamp();
   let backup_path = backups_dir.join(format!("db_backup_{}.sqlite", now));

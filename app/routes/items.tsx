@@ -455,7 +455,7 @@ export default function ItemsPage() {
                                 onChange={field.onChange}
                               />
                               <InputGroupAddon align="inline-end">
-                                <DropdownMenu>
+                                <DropdownMenu modal={false}>
                                   <DropdownMenuTrigger asChild>
                                     <InputGroupButton
                                       variant="ghost"
@@ -467,7 +467,7 @@ export default function ItemsPage() {
                                   </DropdownMenuTrigger>
                                   <DropdownMenuContent
                                     align="end"
-                                    className="[--radius:0.95rem]"
+                                    className="[--radius:0.95rem] z-[9999]"
                                   >
                                     {["件", "台", "箱", "套", "个"].map((option) => (
                                       <DropdownMenuItem

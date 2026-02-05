@@ -16,9 +16,12 @@ export async function shareFile(filePath: string) {
   }
   
   try {
-    // 在移动端，触发系统分享对话框
-    // 用户可以选择保存到文件或通过其他应用分享
-    await invoke("share_file", { filePath });
+    // 使用 tauri-plugin-share 提供的官方 API
+    // 自动检测文件类型并触发系统分享对话框
+    await invoke("plugin:share|share_file", { 
+      path: filePath,
+      mime: "*/*" // 自动检测 MIME 类型
+    });
   } catch (err) {
     throw normalizeTauriError(err);
   }
