@@ -1,6 +1,29 @@
 import { invoke } from "@tauri-apps/api/core";
 import { getSession } from "./auth";
 
+// 平台检测
+export const isMobile = () => {
+  if (typeof window === "undefined") return false;
+  const userAgent = navigator.userAgent.toLowerCase();
+  // 支持 Android、iOS、鸿蒙（HarmonyOS）平板
+  return /android|iphone|ipad|ipod|harmonyos/.test(userAgent);
+};
+
+// 触发系统分享功能（移动端）
+export async function shareFile(filePath: string) {
+  if (!isMobile()) {
+    throw new Error("分享功能仅在移动端可用");
+  }
+  
+  try {
+    // 在移动端，触发系统分享对话框
+    // 用户可以选择保存到文件或通过其他应用分享
+    await invoke("share_file", { filePath });
+  } catch (err) {
+    throw normalizeTauriError(err);
+  }
+}
+
 function normalizeTauriError(err: unknown): Error {
   const raw = err instanceof Error ? err.message : typeof err === "string" ? err : err && typeof err === "object" && "message" in err ? String((err as { message?: unknown }).message) : "";
   if (raw) {

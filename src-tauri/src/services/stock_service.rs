@@ -97,18 +97,28 @@ pub async fn export_stock(
     item_id: Option<String>,
     operator_id: Option<String>,
 ) -> Result<StockExportResult, AppError> {
-    let storage_root = meta_repo::get_meta_value(pool, "storage_root")
-        .await?
-        .ok_or_else(|| AppError::new(ErrorCode::NotFound, "存储根目录未配置"))?;
-    let export_dir = match meta_repo::get_meta_value(pool, "exports_dir").await? {
-        Some(dir) if !dir.is_empty() => std::path::PathBuf::from(dir),
-        _ => std::path::PathBuf::from(storage_root).join("exports"),
+    // 在移动端使用临时文件，桌面端使用导出目录
+    #[cfg(any(target_os = "android", target_os = "ios"))]
+    let file_path = {
+        let temp_dir = std::env::temp_dir();
+        let now = Utc::now().timestamp();
+        temp_dir.join(format!("库存导出数据_{}.csv", now))
     };
-    std::fs::create_dir_all(&export_dir)
-        .map_err(|_| AppError::new(ErrorCode::IoError, "创建导出目录失败"))?;
-
-    let now = Utc::now().timestamp();
-    let file_path = export_dir.join(format!("库存导出数据_{}.csv", now));
+    
+    #[cfg(not(any(target_os = "android", target_os = "ios")))]
+    let file_path = {
+        let storage_root = meta_repo::get_meta_value(pool, "storage_root")
+            .await?
+            .ok_or_else(|| AppError::new(ErrorCode::NotFound, "存储根目录未配置"))?;
+        let export_dir = match meta_repo::get_meta_value(pool, "exports_dir").await? {
+            Some(dir) if !dir.is_empty() => std::path::PathBuf::from(dir),
+            _ => std::path::PathBuf::from(storage_root).join("exports"),
+        };
+        std::fs::create_dir_all(&export_dir)
+            .map_err(|_| AppError::new(ErrorCode::IoError, "创建导出目录失败"))?;
+        let now = Utc::now().timestamp();
+        export_dir.join(format!("库存导出数据_{}.csv", now))
+    };
     let mut lines = Vec::new();
     lines.push("仓库,货架,库位,物品,物品编码,数量".to_string());
 

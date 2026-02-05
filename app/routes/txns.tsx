@@ -151,8 +151,16 @@ export default function TxnsPage() {
           end_at: endDate ? Math.floor(new Date(`${endDate}T23:59:59`).getTime() / 1000) : undefined,
         },
       });
-      setExportFilePath(result.file_path);
-      setExportDialogOpen(true);
+      
+      // 在移动端使用分享功能，桌面端显示导出对话框
+      const { isMobile, shareFile } = await import("~/lib/tauri");
+      if (isMobile()) {
+        await shareFile(result.file_path);
+        toast.success("已打开分享菜单");
+      } else {
+        setExportFilePath(result.file_path);
+        setExportDialogOpen(true);
+      }
     } catch (err) {
       const message = err instanceof Error ? err.message : "导出失败";
       toast.error(message);

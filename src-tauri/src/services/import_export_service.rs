@@ -13,14 +13,22 @@ pub struct ExportResult {
 }
 
 pub async fn export_items(pool: &SqlitePool) -> Result<ExportResult, AppError> {
-  let storage_root = meta_repo::get_meta_value(pool, "storage_root")
-    .await?
-    .ok_or_else(|| AppError::new(ErrorCode::NotFound, "存储根目录未配置"))?;
-  // 优先使用可配置的 exports_dir，否则回退到 storage_root/exports
-  let export_dir = match meta_repo::get_meta_value(pool, "exports_dir").await? {
-    Some(dir) if !dir.is_empty() => std::path::PathBuf::from(dir),
-    _ => std::path::PathBuf::from(&storage_root).join("exports"),
+  // 移动端使用临时目录，桌面端使用配置的导出目录
+  #[cfg(any(target_os = "android", target_os = "ios"))]
+  let export_dir = std::env::temp_dir();
+  
+  #[cfg(not(any(target_os = "android", target_os = "ios")))]
+  let export_dir = {
+    let storage_root = meta_repo::get_meta_value(pool, "storage_root")
+      .await?
+      .ok_or_else(|| AppError::new(ErrorCode::NotFound, "存储根目录未配置"))?;
+    // 优先使用可配置的 exports_dir，否则回退到 storage_root/exports
+    match meta_repo::get_meta_value(pool, "exports_dir").await? {
+      Some(dir) if !dir.is_empty() => std::path::PathBuf::from(dir),
+      _ => std::path::PathBuf::from(&storage_root).join("exports"),
+    }
   };
+  
   std::fs::create_dir_all(&export_dir)
     .map_err(|_| AppError::new(ErrorCode::IoError, "创建导出目录失败"))?;
 

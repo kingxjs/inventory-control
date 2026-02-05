@@ -117,6 +117,7 @@ pub fn run() {
             system_cmd::set_storage_root,
             system_cmd::set_exports_dir,
             system_cmd::set_backups_dir,
+            system_cmd::share_file,
             // 库存管理相关命令
             stock_cmd::list_stock_by_slot,
             stock_cmd::list_stock_by_item,

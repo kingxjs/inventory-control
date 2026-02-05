@@ -252,9 +252,17 @@ export default function StockPage() {
           operator_id: operatorFilter || undefined,
         },
       });
-      // 用 AlertDialog 提示导出成功，并提供打开文件夹按钮
-      setExportFilePath(result.file_path);
-      setExportDialogOpen(true);
+      
+      // 在移动端使用分享功能，桌面端显示文件路径
+      const { isMobile, shareFile } = await import("~/lib/tauri");
+      if (isMobile()) {
+        await shareFile(result.file_path);
+        toast.success("已打开分享菜单");
+      } else {
+        // 桌面端：用 AlertDialog 提示导出成功，并提供打开文件夹按钮
+        setExportFilePath(result.file_path);
+        setExportDialogOpen(true);
+      }
     } catch (err) {
       const message = err instanceof Error ? err.message : "导出失败";
       toast.error(message);
