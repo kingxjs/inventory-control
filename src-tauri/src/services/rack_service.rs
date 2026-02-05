@@ -4,7 +4,7 @@ use uuid::Uuid;
 
 use crate::domain::errors::{AppError, ErrorCode};
 use crate::repo::rack_repo::{RackRow, SlotRow};
-use crate::repo::{meta_repo, rack_repo, stock_repo};
+use crate::repo::{rack_repo, stock_repo};
 use crate::repo::warehouse_repo;
 use crate::services::warehouse_service;
 
@@ -205,7 +205,7 @@ fn normalize_rack_code(code: &str) -> Result<String, AppError> {
       "货架编号只能输入数字",
     ));
   }
-  Ok(format!("R{:0>2}", suffix))
+  Ok(suffix.to_string())
 }
 
 pub async fn regenerate_slots(
@@ -245,23 +245,14 @@ pub async fn regenerate_slots(
     AppError::new(ErrorCode::ValidationError, "仓库缺失，无法生成库位编码")
   })?;
 
-  let slot_no_pad = meta_repo::get_meta_value(pool, "slot_no_pad")
-    .await?
-    .and_then(|value| value.parse::<usize>().ok())
-    .filter(|value| *value > 0)
-    .unwrap_or(2);
-  let level_pad = 2usize;
-
   let mut slots = Vec::new();
   for level in 1..=level_count {
     for slot_no in 1..=slots_per_level {
       let base_code = format!(
-        "{}-L{:0level_width$}-S{:0slot_width$}",
+        "{}-{}-{}",
         rack_code,
         level,
-        slot_no,
-        level_width = level_pad,
-        slot_width = slot_no_pad
+        slot_no
       );
       let code = format!("{}-{}", resolved_warehouse_code, base_code);
       slots.push(SlotRow {
