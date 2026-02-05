@@ -3,9 +3,10 @@ use sqlx::SqlitePool;
 use uuid::Uuid;
 
 use crate::domain::errors::{AppError, ErrorCode};
-use crate::repo::{item_repo, operator_repo, rack_repo, stock_repo, txn_repo, meta_repo, warehouse_repo};
+use crate::repo::{item_repo, operator_repo, rack_repo, stock_repo, txn_repo, warehouse_repo};
+#[cfg(not(any(target_os = "android", target_os = "ios")))]
+use crate::repo::meta_repo;
 use csv::WriterBuilder;
-use std::path::PathBuf;
 
 pub async fn create_inbound(
   pool: &SqlitePool,

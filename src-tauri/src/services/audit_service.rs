@@ -6,6 +6,7 @@ use crate::domain::audit::AuditAction;
 use crate::domain::errors::{AppError, ErrorCode};
 use crate::repo::audit_repo::{self, AuditLogRow};
 use crate::repo::operator_repo;
+#[cfg(not(any(target_os = "android", target_os = "ios")))]
 use crate::repo::meta_repo;
 use sqlx::SqlitePool;
 
