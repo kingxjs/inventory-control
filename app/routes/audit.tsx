@@ -151,7 +151,15 @@ export default function AuditPage() {
   const handleExport = async () => {
     try {
       const result = await tauriInvoke<AuditExportResult>("export_audit_logs");
-      toast.success(`导出成功：${result.file_path}`);
+      
+      // 在移动端使用分享功能，桌面端显示文件路径
+      const { isMobile, shareFile } = await import("~/lib/tauri");
+      if (isMobile()) {
+        await shareFile(result.file_path);
+        toast.success("已打开分享菜单");
+      } else {
+        toast.success(`导出成功：${result.file_path}`);
+      }
     } catch (err) {
       const message = err instanceof Error ? err.message : "导出失败";
       toast.error(message);

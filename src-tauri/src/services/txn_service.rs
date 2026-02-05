@@ -397,18 +397,28 @@ pub async fn export_txns(
   start_at: Option<i64>,
   end_at: Option<i64>
 ) -> Result<TxnExportResult, AppError> {
-  let storage_root = meta_repo::get_meta_value(pool, "storage_root")
-    .await?
-    .ok_or_else(|| AppError::new(ErrorCode::NotFound, "存储根目录未配置"))?;
-  let export_dir = match meta_repo::get_meta_value(pool, "exports_dir").await? {
-    Some(dir) if !dir.is_empty() => PathBuf::from(dir),
-    _ => PathBuf::from(storage_root).join("exports"),
+  // 在移动端使用临时文件，桌面端使用导出目录
+  #[cfg(any(target_os = "android", target_os = "ios"))]
+  let file_path = {
+      let temp_dir = std::env::temp_dir();
+      let now = Utc::now().timestamp();
+      temp_dir.join(format!("流水导出数据_{}.csv", now))
   };
-  std::fs::create_dir_all(&export_dir)
-    .map_err(|_| AppError::new(ErrorCode::IoError, "创建导出目录失败"))?;
-
-  let now = Utc::now().timestamp();
-  let file_path = export_dir.join(format!("流水导出数据_{}.csv", now));
+  
+  #[cfg(not(any(target_os = "android", target_os = "ios")))]
+  let file_path = {
+      let storage_root = meta_repo::get_meta_value(pool, "storage_root")
+          .await?
+          .ok_or_else(|| AppError::new(ErrorCode::NotFound, "存储根目录未配置"))?;
+      let export_dir = match meta_repo::get_meta_value(pool, "exports_dir").await? {
+          Some(dir) if !dir.is_empty() => PathBuf::from(dir),
+          _ => PathBuf::from(storage_root).join("exports"),
+      };
+      std::fs::create_dir_all(&export_dir)
+          .map_err(|_| AppError::new(ErrorCode::IoError, "创建导出目录失败"))?;
+      let now = Utc::now().timestamp();
+      export_dir.join(format!("流水导出数据_{}.csv", now))
+  };
   let mut writer = WriterBuilder::new()
     .has_headers(true)
     .from_path(&file_path)
