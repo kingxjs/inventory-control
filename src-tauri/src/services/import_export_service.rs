@@ -4,7 +4,9 @@ use sqlx::SqlitePool;
 use uuid::Uuid;
 
 use crate::domain::errors::{AppError, ErrorCode};
-use crate::repo::{item_repo, meta_repo, operator_repo};
+use crate::repo::{item_repo, operator_repo};
+#[cfg(not(any(target_os = "android", target_os = "ios")))]
+use crate::repo::meta_repo;
 use crate::services::txn_service;
 
 #[derive(Debug, serde::Serialize)]

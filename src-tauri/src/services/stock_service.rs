@@ -2,7 +2,9 @@ use chrono::Utc;
 use sqlx::SqlitePool;
 
 use crate::domain::errors::{AppError, ErrorCode};
-use crate::repo::{meta_repo, stock_query_repo};
+use crate::repo::stock_query_repo;
+#[cfg(not(any(target_os = "android", target_os = "ios")))]
+use crate::repo::meta_repo;
 
 #[derive(Debug, serde::Serialize)]
 pub struct StockBySlotResult {
