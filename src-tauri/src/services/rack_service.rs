@@ -4,7 +4,7 @@ use uuid::Uuid;
 
 use crate::domain::errors::{AppError, ErrorCode};
 use crate::repo::rack_repo::{RackRow, SlotRow};
-use crate::repo::{meta_repo, rack_repo, stock_repo};
+use crate::repo::{rack_repo, stock_repo};
 use crate::repo::warehouse_repo;
 use crate::services::warehouse_service;
 
