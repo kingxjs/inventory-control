@@ -49,7 +49,7 @@ async function main() {
     : join(repoRoot, 'CHANGELOG.md');
 
   const toRef = asNonEmptyString(values['to-ref']) ?? 'HEAD';
-  const fromTag = asNonEmptyString(values['from-tag']) ?? (await getLatestGitTag(repoRoot));
+  const fromTag = asNonEmptyString(values['from-tag']) ?? (await getBaseTagForVersion(repoRoot, version));
   const range = fromTag ? `${fromTag}..${toRef}` : toRef;
 
   const commits = await getCommits(repoRoot, range);
@@ -106,6 +106,44 @@ async function getLatestGitTag(cwd) {
   } catch {
     return null;
   }
+}
+
+async function getBaseTagForVersion(cwd, version) {
+  try {
+    const result = await runCapture(cwd, 'git', ['tag', '--sort=-v:refname']);
+    const tags = result.stdout.split(/\r?\n/).filter(Boolean);
+    
+    // 解析版本号（支持 v0.1.5 或 0.1.5 格式）
+    const normalizeVersion = (v) => v.replace(/^v/, '');
+    const currentVersion = normalizeVersion(version);
+    
+    // 找到小于当前版本的最新 tag
+    for (const tag of tags) {
+      const tagVersion = normalizeVersion(tag);
+      if (compareVersions(tagVersion, currentVersion) < 0) {
+        return tag;
+      }
+    }
+    
+    return null;
+  } catch {
+    return null;
+  }
+}
+
+function compareVersions(a, b) {
+  const aParts = a.split('.').map(Number);
+  const bParts = b.split('.').map(Number);
+  
+  for (let i = 0; i < Math.max(aParts.length, bParts.length); i++) {
+    const aPart = aParts[i] || 0;
+    const bPart = bParts[i] || 0;
+    
+    if (aPart < bPart) return -1;
+    if (aPart > bPart) return 1;
+  }
+  
+  return 0;
 }
 
 async function getCommits(cwd, range) {
